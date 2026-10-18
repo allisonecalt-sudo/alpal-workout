@@ -44,6 +44,14 @@ test('typed codes are normalised before they are sent', async ({ page, net }) =>
   expect(net.loads).toEqual(['A0B11C2D']);
 });
 
+test('a code pasted with an en-dash opens the app', async ({ page, net }) => {
+  await page.goto('/');
+  await page.locator('#code-input').fill('a0b1\u20131c2d');
+  await page.getByRole('button', { name: 'Open my app' }).click();
+  await expect(page.locator('#greeting')).toBeVisible();
+  expect(net.loads).toEqual(['A0B11C2D']);
+});
+
 test('a wrong code gets the gentle message and nothing is saved', async ({ page, net }) => {
   await page.goto('/');
   await page.locator('#code-input').fill('ZZZZ-ZZZZ');

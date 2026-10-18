@@ -15,7 +15,7 @@ export function renderUnlock(root: HTMLElement, opts: UnlockOptions): void {
       <form id="unlock-form" autocomplete="off">
         <label class="sr-only" for="code-input">Code</label>
         <input id="code-input" name="code" type="text" inputmode="text" autocapitalize="characters"
-          autocomplete="off" autocorrect="off" spellcheck="false" maxlength="12"
+          autocomplete="off" autocorrect="off" spellcheck="false" maxlength="40"
           placeholder="XXXX-XXXX" />
         <p id="unlock-error" class="error" role="alert">${esc(opts.error ?? '')}</p>
         <button type="submit" class="btn btn-main" id="unlock-btn">${esc(COPY.unlockButton)}</button>

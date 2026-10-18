@@ -3,9 +3,16 @@
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 export const CODE_LENGTH = 8;
 
-/** Uppercase, drop spaces and dashes, map O to 0 and I/L to 1. */
+/**
+ * Uppercase, drop every character that is not a letter or digit (spaces, any kind of dash,
+ * dots, invisible characters), then map O to 0 and I/L to 1.
+ */
 export function normaliseCode(input: string): string {
-  return input.toUpperCase().replace(/[\s-]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
+  return input
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .replace(/O/g, '0')
+    .replace(/[IL]/g, '1');
 }
 
 export function isValidCode(code: string): boolean {
