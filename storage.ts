@@ -1,6 +1,6 @@
 // Everything kept on the phone, in one place. Every read and write is wrapped, because
 // localStorage can throw (private windows, blocked site data) and the app must still run.
-import type { MoveStatus, SessionPayload } from './types';
+import type { MoveStatus, QueueItem } from './types';
 import type { TimerState } from './timer';
 
 const K = {
@@ -55,26 +55,33 @@ export function setVoice(on: boolean): void {
 
 export interface Progress {
   week: number;
+  workoutId: string;
   startedAt: number;
+  /** The next step to do (an index into the workout's flat step list). */
   idx: number;
+  /** One status per step finished so far. */
   statuses: MoveStatus[];
+  /** The between-rounds screen is showing (idx is the first step of the next round). */
+  between: boolean;
   timer: TimerState | null;
   /** All moves are through: the After screen is next. */
   finished: boolean;
 }
 
 export function getProgress(): Progress | null {
-  return readJson<Progress>(K.progress);
+  const p = readJson<Progress>(K.progress);
+  // a workout saved by an older version has no workout id: start fresh
+  return p && typeof p.workoutId === 'string' ? p : null;
 }
 export function setProgress(p: Progress | null): void {
   write(K.progress, p === null ? null : JSON.stringify(p));
 }
 
-export function getQueue(): SessionPayload[] {
-  const q = readJson<SessionPayload[]>(K.queue);
+export function getQueue(): QueueItem[] {
+  const q = readJson<QueueItem[]>(K.queue);
   return Array.isArray(q) ? q : [];
 }
-export function setQueue(q: SessionPayload[]): void {
+export function setQueue(q: QueueItem[]): void {
   write(K.queue, q.length === 0 ? null : JSON.stringify(q));
 }
 

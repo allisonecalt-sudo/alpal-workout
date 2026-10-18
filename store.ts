@@ -4,7 +4,8 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
 import { parseGuest } from './program';
 import { getCache, setCache } from './storage';
-import type { GuestData, SaveResult, SessionPayload } from './types';
+import type { AnswerPayload, GuestData, QueueItem, SaveResult, SessionPayload } from './types';
+import { isAnswer } from './types';
 
 // The schema the two functions live in. Sent as a profile header only when it is not public.
 const SCHEMA = 'public';
@@ -59,12 +60,25 @@ export async function guestLoad(code: string): Promise<GuestData | null> {
   return parseGuest(raw);
 }
 
-/** Send one finished session. Throws StoreError when offline (the caller queues it). */
-export async function guestSaveSession(code: string, session: SessionPayload): Promise<SaveResult> {
-  const raw = await rpc('guest_save_session', { p_code: code, p_session: session });
+function parseSave(raw: unknown): SaveResult {
   if (typeof raw === 'object' && raw !== null && 'ok' in raw) {
     const r = raw as { ok: unknown; reason?: unknown };
     return { ok: r.ok === true, reason: typeof r.reason === 'string' ? r.reason : undefined };
   }
   return { ok: false, reason: 'bad response' };
+}
+
+/** Send one finished session. Throws StoreError when offline (the caller queues it). */
+export async function guestSaveSession(code: string, session: SessionPayload): Promise<SaveResult> {
+  return parseSave(await rpc('guest_save_session', { p_code: code, p_session: session }));
+}
+
+/** Send one answer. Throws StoreError when offline (the caller queues it). */
+export async function guestSaveAnswer(code: string, answer: AnswerPayload): Promise<SaveResult> {
+  return parseSave(await rpc('guest_save_answer', { p_code: code, p_answer: answer }));
+}
+
+/** Send whatever is waiting in the queue, by kind. */
+export function sendQueued(code: string, item: QueueItem): Promise<SaveResult> {
+  return isAnswer(item) ? guestSaveAnswer(code, item) : guestSaveSession(code, item);
 }

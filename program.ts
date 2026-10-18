@@ -1,11 +1,17 @@
 // Reads what the store sends and checks its shape. Anything wrong becomes "no program",
 // which the app shows as the "not loaded" message. It never invents a workout.
-import type { GuestData, Move, Program, SessionSummary, Feel } from './types';
+import type { Feel, GuestData, Move, Program, Question, SessionSummary, Workout } from './types';
 
 type Obj = Record<string, unknown>;
 
 function isObj(v: unknown): v is Obj {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function strings(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const list = v.filter((x): x is string => typeof x === 'string' && x !== '');
+  return list.length > 0 ? list : undefined;
 }
 
 function parseMove(raw: unknown): Move | null {
@@ -19,31 +25,87 @@ function parseMove(raw: unknown): Move | null {
   const move: Move = { name, how: how as string[] };
   if (hasReps) move.reps = reps as string;
   else move.seconds = seconds as number;
+  if (typeof raw.video === 'string' && raw.video !== '') move.video = raw.video;
+  if (typeof raw.why === 'string' && raw.why !== '') move.why = raw.why;
+  const tips = strings(raw.tips);
+  if (tips) move.tips = tips;
+  const watchOut = strings(raw.watchOut);
+  if (watchOut) move.watchOut = watchOut;
   return move;
 }
 
-/** The store may send the week beside the data, or the data nested under "data". */
+/** A missing list is empty; a list with a bad move makes the whole thing invalid (null). */
+function parseMoves(raw: unknown, required: boolean): Move[] | null {
+  if (raw === undefined || raw === null) return required ? null : [];
+  if (!Array.isArray(raw)) return null;
+  if (required && raw.length === 0) return null;
+  const out: Move[] = [];
+  for (const m of raw) {
+    const pm = parseMove(m);
+    if (!pm) return null;
+    out.push(pm);
+  }
+  return out;
+}
+
+function parseWorkout(raw: unknown): Workout | null {
+  if (!isObj(raw)) return null;
+  if (typeof raw.id !== 'string' || raw.id === '') return null;
+  if (typeof raw.name !== 'string' || typeof raw.minutes !== 'number') return null;
+  const main = parseMoves(raw.main, true);
+  const warmup = parseMoves(raw.warmup, false);
+  const cooldown = parseMoves(raw.cooldown, false);
+  if (!main || !warmup || !cooldown) return null;
+  const rounds =
+    typeof raw.rounds === 'number' && Number.isInteger(raw.rounds) && raw.rounds >= 1
+      ? raw.rounds
+      : 1;
+  return { id: raw.id, name: raw.name, minutes: raw.minutes, warmup, main, rounds, cooldown };
+}
+
+/**
+ * The store may send the week beside the data, or the data nested under "data". The old
+ * shape (a flat "moves" list) is read as one workout with one round.
+ */
 export function parseProgram(raw: unknown): Program | null {
   if (!isObj(raw)) return null;
   const data = isObj(raw.data) ? raw.data : raw;
   const week = typeof raw.week === 'number' ? raw.week : data.week;
   if (typeof week !== 'number') return null;
-  const { label, minutes, sessionsPerWeek, moves, restSeconds, checkLabel } = data;
-  if (typeof label !== 'string' || typeof minutes !== 'number') return null;
+  const { label, sessionsPerWeek, restSeconds, checkLabel } = data;
+  if (typeof label !== 'string') return null;
   if (typeof sessionsPerWeek !== 'number' || sessionsPerWeek < 1) return null;
-  if (!Array.isArray(moves) || moves.length === 0) return null;
-  const parsed: Move[] = [];
-  for (const m of moves) {
-    const pm = parseMove(m);
-    if (!pm) return null;
-    parsed.push(pm);
+
+  let workouts: Workout[];
+  if (Array.isArray(data.workouts)) {
+    workouts = [];
+    for (const w of data.workouts) {
+      const pw = parseWorkout(w);
+      if (!pw) return null;
+      workouts.push(pw);
+    }
+    if (workouts.length === 0) return null;
+    if (new Set(workouts.map((w) => w.id)).size !== workouts.length) return null;
+  } else {
+    const moves = parseMoves(data.moves, true);
+    if (!moves || typeof data.minutes !== 'number') return null;
+    workouts = [
+      {
+        id: 'A',
+        name: label,
+        minutes: data.minutes,
+        warmup: [],
+        main: moves,
+        rounds: 1,
+        cooldown: [],
+      },
+    ];
   }
   const program: Program = {
     week,
     label,
-    minutes,
     sessionsPerWeek,
-    moves: parsed,
+    workouts,
     restSeconds: typeof restSeconds === 'number' ? restSeconds : 0,
   };
   if (typeof checkLabel === 'string' && checkLabel !== '') program.checkLabel = checkLabel;
@@ -59,8 +121,19 @@ function parseSession(raw: unknown): SessionSummary | null {
   return {
     done_at: raw.done_at,
     week: typeof raw.week === 'number' ? raw.week : null,
+    workout: typeof raw.workout === 'string' && raw.workout !== '' ? raw.workout : null,
     feel: parseFeel(raw.feel),
     check_0_10: typeof raw.check_0_10 === 'number' ? raw.check_0_10 : null,
+  };
+}
+
+function parseQuestion(raw: unknown): Question | null {
+  if (!isObj(raw) || typeof raw.text !== 'string' || raw.text === '') return null;
+  if (typeof raw.id !== 'string' && typeof raw.id !== 'number') return null;
+  return {
+    id: String(raw.id),
+    section: typeof raw.section === 'string' ? raw.section : '',
+    text: raw.text,
   };
 }
 
@@ -70,23 +143,50 @@ export function parseGuest(raw: unknown): GuestData | null {
   const sessions = Array.isArray(raw.sessions)
     ? raw.sessions.map(parseSession).filter((s): s is SessionSummary => s !== null)
     : [];
+  const questions = Array.isArray(raw.questions)
+    ? raw.questions.map(parseQuestion).filter((q): q is Question => q !== null)
+    : [];
   return {
     name: typeof raw.name === 'string' ? raw.name : '',
     tellWhatsapp:
       typeof raw.tell_whatsapp === 'string' && raw.tell_whatsapp !== '' ? raw.tell_whatsapp : null,
     program: parseProgram(raw.program),
     sessions,
+    questions,
+    answered: typeof raw.answered === 'number' ? raw.answered : 0,
   };
 }
 
-/** How many sessions in each program week, newest week first. */
-export function weeksSummary(sessions: { week: number | null }[]): { week: number; n: number }[] {
-  const counts = new Map<number, number>();
-  for (const s of sessions) {
-    if (s.week === null) continue;
-    counts.set(s.week, (counts.get(s.week) ?? 0) + 1);
-  }
-  return [...counts.entries()].map(([week, n]) => ({ week, n })).sort((a, b) => b.week - a.week);
+export interface SessionLite {
+  week: number | null;
+  workout: string | null;
+}
+
+/** Which workouts are done in this program week. */
+export function doneIds(sessions: SessionLite[], week: number): Set<string> {
+  const ids = new Set<string>();
+  for (const s of sessions) if (s.week === week && s.workout !== null) ids.add(s.workout);
+  return ids;
+}
+
+/** The first workout, in the data's order, not yet done this week. null when all are done. */
+export function upNext(workouts: Workout[], done: Set<string>): Workout | null {
+  return workouts.find((w) => !done.has(w.id)) ?? null;
+}
+
+/** "Week 2 · A ✓ B ✓ C" per program week, newest first. One workout: "Week 1 · 2 of 3". */
+export function weekRows(sessions: SessionLite[], program: Program): string[] {
+  const weeks = [...new Set(sessions.map((s) => s.week).filter((w): w is number => w !== null))];
+  weeks.sort((a, b) => b - a);
+  return weeks.map((w) => {
+    const inWeek = sessions.filter((s) => s.week === w);
+    if (program.workouts.length === 1) {
+      return `Week ${w} · ${inWeek.length} of ${program.sessionsPerWeek}`;
+    }
+    const done = doneIds(inWeek, w);
+    const letters = program.workouts.map((x) => (done.has(x.id) ? `${x.id} ✓` : x.id)).join(' ');
+    return `Week ${w} · ${letters}`;
+  });
 }
 
 export function movePlain(m: Move): string {

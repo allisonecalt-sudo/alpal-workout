@@ -29,5 +29,9 @@ export const COPY = {
   save: 'Save',
   savedLocal: "Saved on your phone. It'll send when you're online.",
   saveRefused: "Couldn't save this one. Tell Allison.",
+  skipForNow: 'Skip for now',
+  doneForNow: 'Done for now',
+  answerHint: 'Type, or tap the 🎤 on your keyboard to talk.',
+  allAnswered: "That's all of them. Thank you! ❤️ Allison will read them.",
   loading: 'Loading…',
 } as const;

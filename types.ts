@@ -6,14 +6,28 @@ export interface Move {
   /** Either reps (e.g. "8 times") or seconds (a timed move), never both. */
   reps?: string;
   seconds?: number;
+  /** A video link (parsed when shown; a link that cannot be parsed shows no button). */
+  video?: string;
+  why?: string;
+  tips?: string[];
+  watchOut?: string[];
+}
+
+export interface Workout {
+  id: string;
+  name: string;
+  minutes: number;
+  warmup: Move[];
+  main: Move[];
+  rounds: number;
+  cooldown: Move[];
 }
 
 export interface Program {
   week: number;
   label: string;
-  minutes: number;
   sessionsPerWeek: number;
-  moves: Move[];
+  workouts: Workout[];
   restSeconds: number;
   /** Optional wording for the 0-10 check-in on the After screen (comes from the store). */
   checkLabel?: string;
@@ -22,8 +36,15 @@ export interface Program {
 export interface SessionSummary {
   done_at: string;
   week: number | null;
+  workout: string | null;
   feel: Feel | null;
   check_0_10: number | null;
+}
+
+export interface Question {
+  id: string;
+  section: string;
+  text: string;
 }
 
 export interface GuestData {
@@ -31,13 +52,19 @@ export interface GuestData {
   tellWhatsapp: string | null;
   program: Program | null;
   sessions: SessionSummary[];
+  /** Unanswered questions, in order. */
+  questions: Question[];
+  answered: number;
 }
 
 export type Feel = 'easy' | 'right' | 'hard';
 export type MoveStatus = 'done' | 'skipped' | 'hurt';
+export type Part = 'warmup' | 'main' | 'cooldown';
 
 export interface SessionMove {
   name: string;
+  part: Part;
+  round: number;
   status: MoveStatus;
 }
 
@@ -46,10 +73,25 @@ export interface SessionPayload {
   client_id: string;
   done_at: string;
   week: number;
+  workout: string;
   moves: SessionMove[];
   feel: Feel | null;
   check_0_10: number | null;
   note: string | null;
+}
+
+/** What is sent to the store for one answered question. */
+export interface AnswerPayload {
+  client_id: string;
+  question_id: string;
+  answer: string;
+}
+
+/** Anything that can wait in the phone-side queue. */
+export type QueueItem = SessionPayload | AnswerPayload;
+
+export function isAnswer(item: QueueItem): item is AnswerPayload {
+  return 'question_id' in item;
 }
 
 export interface SaveResult {
