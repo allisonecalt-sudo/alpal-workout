@@ -5,7 +5,10 @@ A small guided workout app for one person at a time. Open it on a phone, enter a
 ## What it is
 
 - Installable PWA (works offline after the first open), English, left to right.
-- Four screens: unlock (first open only), Home, Workout, After.
+- Screens: unlock (first open only), Home, Workout, After, Questions.
+- Several workouts a week, each with an optional warm-up, main moves repeated for a number of rounds, and an optional cool-down. Home shows the next one not yet done this week, with the others as chips.
+- Every move can carry a video (shown only after a tap, in the no-cookie player) and a few lines of extra info.
+- A list of questions can be answered whenever the person likes, one at a time.
 - Everything personal (the person's name, the program, a contact number) is **not in this repo**. It is loaded at runtime from a locked store.
 
 ## Why it is built this way
@@ -14,25 +17,26 @@ The repo is public, so it holds no names, no program content and no phone number
 
 ## What is decided
 
-- **Store access:** only two functions, `guest_load` and `guest_save_session`, called with `POST` over `/rest/v1/rpc/`. The code travels in the JSON body, never in a URL. All calls live in `store.ts`; if the privacy design changes, that is the one file to change (the schema the functions live in is one constant there).
+- **Store access:** only two functions, `guest_load`, `guest_save_session` and `guest_save_answer`, called with `POST` over `/rest/v1/rpc/`. The code travels in the JSON body, never in a URL. All calls live in `store.ts`; if the privacy design changes, that is the one file to change (the schema the functions live in is one constant there).
 - **Tables:** `setup.sql` creates three tables with row level security on, no policies and no grants for the public roles. It is a file only; this repo never runs it.
-- **Offline:** the last good copy of the program is kept on the phone. A finished workout that cannot be sent is queued (each has a client id, so a retry never duplicates) and sent on the next open. A refused save (`ok:false`) is not retried.
+- **Program shape:** workouts with rounds (the older flat list of moves still works and is read as one workout with one round).
+- **Offline:** the last good copy of the program is kept on the phone. A finished workout or an answer that cannot be sent is queued (each has a client id, so a retry never duplicates) and sent on the next open. A refused save (`ok:false`) is not retried.
 - **Timer:** wall-clock based, so it survives the screen locking and reloads.
 - **Look:** warm light palette, one accent colour used only for the Start button, nothing red, no streaks.
 
 ## Layout
 
-| File                            | What                                              |
-| ------------------------------- | ------------------------------------------------- |
-| `app.ts`                        | shell: picks the screen, saves, flushes the queue |
-| `screens/`                      | unlock, home, workout, after, not-loaded          |
-| `store.ts`                      | the only code that talks to the store             |
-| `storage.ts`                    | everything kept on the phone (localStorage)       |
-| `program.ts`                    | checks the shape of what the store sends          |
-| `timer.ts`, `queue.ts`          | pure logic with unit tests                        |
-| `copy.ts`                       | every word the app shows                          |
-| `sw.js`, `manifest.webmanifest` | offline shell                                     |
-| `setup.sql`                     | the locked store (not run by this repo)           |
+| File                                           | What                                              |
+| ---------------------------------------------- | ------------------------------------------------- |
+| `app.ts`                                       | shell: picks the screen, saves, flushes the queue |
+| `screens/`                                     | unlock, home, workout, after, not-loaded          |
+| `store.ts`                                     | the only code that talks to the store             |
+| `storage.ts`                                   | everything kept on the phone (localStorage)       |
+| `program.ts`                                   | checks the shape of what the store sends          |
+| `timer.ts`, `queue.ts`, `steps.ts`, `video.ts` | pure logic with unit tests                        |
+| `copy.ts`                                      | every word the app shows                          |
+| `sw.js`, `manifest.webmanifest`                | offline shell                                     |
+| `setup.sql`                                    | the locked store (not run by this repo)           |
 
 ## Commands
 

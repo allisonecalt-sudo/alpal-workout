@@ -544,3 +544,27 @@ input[type='text'] {
 .notice .tell {
   margin-top: 4px;
 }
+
+/* A small arrow so the lists read as tappable (the default marker is hidden by flex) */
+.part summary::after,
+.more summary::after {
+  content: '›';
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 1.3rem;
+  transition: transform 0.15s;
+}
+
+.part[open] summary::after,
+.more[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.part summary::-webkit-details-marker,
+.more summary::-webkit-details-marker {
+  display: none;
+}
+
+.card h2:first-child {
+  margin-top: 0;
+}
