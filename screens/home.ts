@@ -23,6 +23,8 @@ export interface HomeOptions {
   /** The workout she picked from the chips, if any. */
   chosenId: string | null;
   questionsLeft: number;
+  /** Show the safety card open (the first time this program week). */
+  safetyOpen: boolean;
   unsentSessions: number;
   unsentAnswers: number;
   /** A one-time note, e.g. a save that was refused. */
@@ -142,6 +144,13 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
       </div>`;
   }
 
+  const safety =
+    program.safety && program.safety.length > 0
+      ? `<details class="card safety" id="safety"${opts.safetyOpen ? ' open' : ''}>
+           <summary>${esc(COPY.safetyTitle)}</summary>
+           <ul>${program.safety.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
+         </details>`
+      : '';
   const questions =
     opts.questionsLeft > 0
       ? `<div class="card" id="questions-card">
@@ -176,6 +185,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
         <div class="dots" id="dots">${dots}</div>
         <p id="week-words">${doneThisWeek} of ${program.sessionsPerWeek} this week</p>
       </div>
+      ${safety}
       ${card}
       ${questions}
       ${unsentHtml}

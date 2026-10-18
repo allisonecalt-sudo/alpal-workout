@@ -9,6 +9,7 @@ const K = {
   progress: 'aw.progress',
   queue: 'aw.queue',
   cache: 'aw.cache',
+  safety: 'aw.safety',
 } as const;
 
 function read(key: string): string | null {
@@ -92,4 +93,12 @@ export function getCache(code: string): unknown {
 }
 export function setCache(code: string, data: unknown): void {
   write(K.cache, JSON.stringify({ code, data }));
+}
+
+/** Has the "Before you start" card already been shown open for this program week? */
+export function getSafetySeen(week: number): boolean {
+  return read(`${K.safety}.${week}`) === 'seen';
+}
+export function setSafetySeen(week: number): void {
+  write(`${K.safety}.${week}`, 'seen');
 }

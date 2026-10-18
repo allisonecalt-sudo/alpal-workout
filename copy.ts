@@ -36,5 +36,6 @@ export const COPY = {
   unlockLocked: 'Too many tries just now. Wait 15 minutes and try again.',
   cantOpen: "Can't open right now. Try again in a few minutes.",
   tryAgain: 'Try again',
+  safetyTitle: 'Before you start',
   loading: 'Loading…',
 } as const;

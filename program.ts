@@ -109,6 +109,8 @@ export function parseProgram(raw: unknown): Program | null {
     restSeconds: typeof restSeconds === 'number' ? restSeconds : 0,
   };
   if (typeof checkLabel === 'string' && checkLabel !== '') program.checkLabel = checkLabel;
+  const safety = strings(data.safety);
+  if (safety) program.safety = safety;
   return program;
 }
 

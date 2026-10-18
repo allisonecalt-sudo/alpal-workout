@@ -31,6 +31,8 @@ export interface Program {
   restSeconds: number;
   /** Optional wording for the 0-10 check-in on the After screen (comes from the store). */
   checkLabel?: string;
+  /** General tips shown in a card above Up next (data only; no text in code). */
+  safety?: string[];
 }
 
 export interface SessionSummary {

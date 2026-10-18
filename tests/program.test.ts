@@ -212,3 +212,13 @@ test('weeks list for one workout: a count out of sessions per week', () => {
     )
   ).toEqual(['Week 1 · 2 of 3']);
 });
+
+test('program: safety lines are kept when present and absent otherwise', () => {
+  expect(parseProgram({ ...rounds, safety: ['Line one', 'Line two'] })?.safety).toEqual([
+    'Line one',
+    'Line two',
+  ]);
+  expect(parseProgram(rounds)?.safety).toBeUndefined();
+  expect(parseProgram({ ...rounds, safety: [] })?.safety).toBeUndefined();
+  expect(parseProgram({ ...rounds, safety: 'not a list' })?.safety).toBeUndefined();
+});

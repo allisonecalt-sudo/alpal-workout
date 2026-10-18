@@ -583,3 +583,38 @@ input[type='text'] {
 .move-link {
   overflow-wrap: anywhere;
 }
+
+/* Before you start */
+.safety summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.safety summary::after {
+  content: '›';
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 1.3rem;
+  transition: transform 0.15s;
+}
+
+.safety[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.safety summary::-webkit-details-marker {
+  display: none;
+}
+
+.safety ul {
+  margin: 4px 0 0;
+  padding-left: 1.2em;
+  overflow-wrap: anywhere;
+}
+
+.safety li {
+  margin-bottom: 6px;
+}

@@ -9,10 +9,12 @@ import { buildSteps, movesLog } from './steps';
 import {
   getCode,
   getProgress,
+  getSafetySeen,
   getQueue,
   setCode,
   setProgress,
   setQueue,
+  setSafetySeen,
   type Progress,
 } from './storage';
 import {
@@ -39,6 +41,8 @@ const root = $(document, '#app');
 let code = '';
 let data: GuestData | null = null;
 let flushing = false;
+/** The program week whose safety card was opened in this session. */
+let safetyOpenWeek: number | null = null;
 /** Shown once on the next Home, then cleared. */
 let notice: string | null = null;
 /** The workout she picked from the chips (null = the Up next one). */
@@ -122,6 +126,15 @@ function openQuestions(): Question[] {
   return (data?.questions ?? []).filter((q) => !waiting.has(q.id));
 }
 
+/** Open the first time she sees it this program week, closed after that. */
+function safetyOpen(week: number): boolean {
+  if (safetyOpenWeek === week) return true; // stays open for the rest of this visit
+  if (getSafetySeen(week)) return false;
+  setSafetySeen(week);
+  safetyOpenWeek = week;
+  return true;
+}
+
 function showHome(): void {
   leaveWorkout();
   releaseAwake();
@@ -139,6 +152,7 @@ function showHome(): void {
     sessions: [...data.sessions, ...waitingSessions],
     chosenId,
     questionsLeft: openQuestions().length,
+    safetyOpen: program.safety ? safetyOpen(program.week) : false,
     unsentSessions: waitingSessions.length,
     unsentAnswers: queuedAnswers().length,
     notice: shown,
