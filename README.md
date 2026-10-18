@@ -17,8 +17,8 @@ The repo is public, so it holds no names, no program content and no phone number
 
 ## What is decided
 
-- **Store access:** only two functions, `guest_load`, `guest_save_session` and `guest_save_answer`, called with `POST` over `/rest/v1/rpc/`. The code travels in the JSON body, never in a URL. All calls live in `store.ts`; if the privacy design changes, that is the one file to change (the schema the functions live in is one constant there).
-- **Tables:** `setup.sql` creates three tables with row level security on, no policies and no grants for the public roles. It is a file only; this repo never runs it.
+- **Store access:** only three public functions, `guest_load`, `guest_save_session` and `guest_save_answer`, called with `POST` over `/rest/v1/rpc/`. The code travels in the JSON body, never in a URL. All calls live in `store.ts`; if the privacy design changes, that is the one file to change (the schema the functions live in is one constant there).
+- **Tables:** six, in a private schema with row level security on, no policies and no grants for the public roles: four from `setup.sql` (users, program, sessions, attempts, which is the brute-force throttle) and two from `migrations/` (questions, answers). The migrations also add the workout column and the distinct lockout reply. These files are a record of what was run; this repo never runs them.
 - **Program shape:** workouts with rounds (the older flat list of moves still works and is read as one workout with one round).
 - **Offline:** the last good copy of the program is kept on the phone. A finished workout or an answer that cannot be sent is queued (each has a client id, so a retry never duplicates) and sent on the next open. A refused save (`ok:false`) is not retried.
 - **Timer:** wall-clock based, so it survives the screen locking and reloads.
@@ -36,7 +36,7 @@ The repo is public, so it holds no names, no program content and no phone number
 | `timer.ts`, `queue.ts`, `steps.ts`, `video.ts` | pure logic with unit tests                        |
 | `copy.ts`                                      | every word the app shows                          |
 | `sw.js`, `manifest.webmanifest`                | offline shell                                     |
-| `setup.sql`                                    | the locked store (not run by this repo)           |
+| `setup.sql`, `migrations/`                     | the locked store as run (not run by this repo)    |
 
 ## Commands
 
@@ -62,4 +62,4 @@ CI (`.github/workflows/ci.yml`): format, lint, build, tests, then GitHub Pages o
 
 ## What is next
 
-Create the store with `setup.sql`, add the first user and week, then share the link and code.
+The store is created from `setup.sql` and then the files in `migrations/`, in date order. Add the first user and week, then share the link and code.
