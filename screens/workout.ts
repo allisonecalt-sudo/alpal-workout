@@ -1,8 +1,10 @@
-// 1c. Workout: one move at a time, full screen. Progress is saved after every change, so a
-// reload picks up on the same move with the timer's wall-clock time intact.
+// 1c. Workout: one move at a time, full screen, through warm-up, the main rounds and cool-down.
+// Progress is saved after every change, so a reload picks up on the same part, round, move
+// and timer (wall-clock based).
 import { COPY } from '../copy';
 import { $, esc, toast } from '../dom';
 import { beep, speak, stopSpeaking, unlockAudio } from '../device';
+import { buildSteps, endsRound, progressLabel } from '../steps';
 import { getVoice, setProgress, setVoice, type Progress } from '../storage';
 import {
   finishTimer,
@@ -14,10 +16,11 @@ import {
   remainingMs,
   startTimer,
 } from '../timer';
-import type { Move, MoveStatus, Program } from '../types';
+import type { MoveStatus, Workout } from '../types';
+import { moveInfoHtml, wireMoveInfo } from './moveinfo';
 
 export interface WorkoutOptions {
-  program: Program;
+  workout: Workout;
   progress: Progress;
   /** Read the first move aloud now (true when she just tapped Start). */
   speakFirst: boolean;
@@ -34,28 +37,53 @@ export function leaveWorkout(): void {
 }
 
 export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
-  const { program, progress } = opts;
+  const { workout, progress } = opts;
+  const steps = buildSteps(workout);
 
   const save = (): void => setProgress(progress);
+
+  const finish = (): void => {
+    progress.finished = true;
+    progress.between = false;
+    save();
+    leaveWorkout();
+    opts.onFinished();
+  };
 
   const advance = (status: MoveStatus): void => {
     progress.statuses[progress.idx] = status;
     progress.idx += 1;
     progress.timer = null;
+    if (progress.idx >= steps.length) return finish();
+    progress.between = endsRound(steps, progress.idx - 1, workout);
     save();
-    show(true);
+    show(!progress.between);
+  };
+
+  const showBetween = (): void => {
+    const done = steps[progress.idx - 1].round;
+    root.innerHTML = `
+      <section class="workout between">
+        <h1 id="between-title">Round ${done} done 👏 · Round ${done + 1} of ${workout.rounds}</h1>
+        <div class="actions">
+          <button type="button" class="btn btn-main" id="next-round-btn">Next round</button>
+          <button type="button" class="btn btn-soft" id="finish-btn">Finish now</button>
+        </div>
+      </section>`;
+    $(root, '#next-round-btn').addEventListener('click', () => {
+      progress.between = false;
+      save();
+      show(true);
+    });
+    $(root, '#finish-btn').addEventListener('click', finish);
   };
 
   const show = (speakIt: boolean): void => {
     window.clearInterval(tick);
-    if (progress.idx >= program.moves.length) {
-      progress.finished = true;
-      save();
-      leaveWorkout();
-      opts.onFinished();
-      return;
-    }
-    const move: Move = program.moves[progress.idx];
+    if (progress.idx >= steps.length) return finish();
+    if (progress.between) return showBetween();
+    const step = steps[progress.idx];
+    const move = step.move;
     const timed = move.seconds !== undefined;
     if (timed && progress.timer === null) {
       progress.timer = newTimer(move.seconds ?? 0);
@@ -67,7 +95,6 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
       save();
     }
     const voiceOn = getVoice();
-    const how = move.how.map((l) => `<li>${esc(l)}</li>`).join('');
     const amount = timed
       ? `<div class="timer" id="timer" role="timer" aria-live="off">${formatRemaining(
           remainingMs(progress.timer ?? newTimer(move.seconds ?? 0), Date.now())
@@ -77,12 +104,12 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     root.innerHTML = `
       <section class="workout">
         <div class="workout-top">
-          <p class="progress-line" id="progress-line">Move ${progress.idx + 1} of ${program.moves.length}</p>
+          <p class="progress-line" id="progress-line">${esc(progressLabel(step, workout))}</p>
           <button type="button" class="voice-btn" id="voice-btn" aria-pressed="${voiceOn}"
             aria-label="Voice"></button>
         </div>
         <h1 class="move-name" id="move-name">${esc(move.name)}</h1>
-        <ul class="how" id="how">${how}</ul>
+        ${moveInfoHtml(move)}
         ${amount}
         <div class="actions">
           <button type="button" class="btn btn-main" id="done-btn">${esc(COPY.done)}</button>
@@ -92,6 +119,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
           </div>
         </div>
       </section>`;
+    wireMoveInfo(root, move);
 
     const voiceBtn = $<HTMLButtonElement>(root, '#voice-btn');
     const paintVoice = (): void => {
