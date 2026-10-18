@@ -1,5 +1,270 @@
-// Stub: the app shell is wired in a later commit.
+// App shell: decides which screen to show. Screens live in screens/; every store call is in
+// store.ts; everything kept on the phone is in storage.ts.
+import { COPY } from './copy';
+import { isValidCode, normaliseCode } from './code';
+import { $, toast } from './dom';
+import { keepAwake, releaseAwake, unlockAudio } from './device';
+import { enqueue, flushQueue, newClientId } from './queue';
+import {
+  getCode,
+  getProgress,
+  getQueue,
+  setCode,
+  setProgress,
+  setQueue,
+  type Progress,
+} from './storage';
+import { StoreError, guestLoad, guestSaveSession } from './store';
+import type { GuestData, Program, SessionPayload } from './types';
 import { APP_VERSION } from './version';
+import { renderAfter, type AfterAnswers } from './screens/after';
+import { renderHome } from './screens/home';
+import { renderLoading, renderNotLoaded } from './screens/notloaded';
+import { renderUnlock, showUnlockError } from './screens/unlock';
+import { leaveWorkout, renderWorkout } from './screens/workout';
 
-const tag = document.getElementById('app-version');
-if (tag) tag.textContent = APP_VERSION;
+const STALE_WORKOUT_MS = 12 * 60 * 60 * 1000;
+
+const root = $(document, '#app');
+let code = '';
+let data: GuestData | null = null;
+let flushing = false;
+/** Shown once on the next Home, then cleared. */
+let notice: string | null = null;
+
+function tellHref(): string | null {
+  const digits = (data?.tellWhatsapp ?? '').replace(/\D/g, '');
+  return digits === ''
+    ? null
+    : `https://wa.me/${digits}?text=${encodeURIComponent(COPY.tellPrefill)}`;
+}
+
+function setHeader(): void {
+  $(document, '#app-version').textContent = APP_VERSION;
+  const tell = $<HTMLAnchorElement>(document, '#tell');
+  const href = tellHref();
+  if (href === null) {
+    tell.hidden = true;
+    tell.removeAttribute('href');
+    return;
+  }
+  tell.textContent = COPY.tellButton;
+  tell.href = href;
+  tell.hidden = false;
+}
+
+function showUnlock(error?: string): void {
+  leaveWorkout();
+  data = null;
+  setHeader();
+  renderUnlock(root, {
+    error,
+    onSubmit: async (raw) => {
+      const norm = normaliseCode(raw);
+      if (!isValidCode(norm)) {
+        showUnlockError(root, COPY.unlockWrong);
+        return;
+      }
+      showUnlockError(root, '');
+      try {
+        const loaded = await guestLoad(norm);
+        if (loaded === null) {
+          showUnlockError(root, COPY.unlockWrong);
+          return;
+        }
+        code = norm;
+        setCode(norm);
+        void keepStorage();
+        data = loaded;
+        setHeader();
+        route(false);
+        void flush();
+      } catch (e) {
+        if (e instanceof StoreError) showUnlockError(root, COPY.unlockOffline);
+        else throw e;
+      }
+    },
+  });
+}
+
+function programOf(): Program | null {
+  return data?.program ?? null;
+}
+
+function queuedWeeks(): number[] {
+  return getQueue().map((q) => q.week);
+}
+
+function showHome(): void {
+  leaveWorkout();
+  releaseAwake();
+  const program = programOf();
+  if (!data || !program) {
+    renderNotLoaded(root);
+    return;
+  }
+  const shown = notice === null ? undefined : { text: notice, tellHref: tellHref() };
+  notice = null;
+  renderHome(root, {
+    data,
+    program,
+    queuedWeeks: queuedWeeks(),
+    notice: shown,
+    onStart: startWorkout,
+  });
+}
+
+function startWorkout(): void {
+  const program = programOf();
+  if (!program) return;
+  unlockAudio();
+  const progress: Progress = {
+    week: program.week,
+    startedAt: Date.now(),
+    idx: 0,
+    statuses: [],
+    timer: null,
+    finished: false,
+  };
+  setProgress(progress);
+  showWorkout(progress, true);
+}
+
+function showWorkout(progress: Progress, speakFirst: boolean): void {
+  const program = programOf();
+  if (!program) return;
+  keepAwake();
+  renderWorkout(root, {
+    program,
+    progress,
+    speakFirst,
+    onFinished: () => showAfter(),
+  });
+}
+
+function showAfter(): void {
+  const program = programOf();
+  if (!program) return;
+  releaseAwake();
+  renderAfter(root, { program, onSave: (answers) => saveSession(program, answers) });
+}
+
+async function saveSession(program: Program, answers: AfterAnswers): Promise<void> {
+  const progress = getProgress();
+  const statuses = progress?.statuses ?? [];
+  const session: SessionPayload = {
+    client_id: newClientId(),
+    done_at: new Date().toISOString(),
+    week: program.week,
+    moves: program.moves.map((m, i) => ({ name: m.name, status: statuses[i] ?? 'skipped' })),
+    feel: answers.feel,
+    check_0_10: answers.check,
+    note: answers.note,
+  };
+  // 'sent' = the store took it; 'refused' = it answered ok:false; 'offline' = no answer.
+  let outcome: 'sent' | 'refused' | 'offline' = 'offline';
+  try {
+    outcome = (await guestSaveSession(code, session)).ok ? 'sent' : 'refused';
+  } catch {
+    outcome = 'offline';
+  }
+  if (outcome === 'sent') {
+    data?.sessions.unshift({
+      done_at: session.done_at,
+      week: session.week,
+      feel: session.feel,
+      check_0_10: session.check_0_10,
+    });
+  } else if (outcome === 'offline') {
+    setQueue(enqueue(getQueue(), session));
+    toast(COPY.savedLocal, 5000);
+  } else {
+    notice = COPY.saveRefused;
+  }
+  setProgress(null);
+  showHome();
+}
+
+/** Send anything saved on the phone while offline. Runs on every app open. */
+async function flush(): Promise<void> {
+  if (flushing || getQueue().length === 0) return;
+  flushing = true;
+  try {
+    const { sent, dropped } = await flushQueue(
+      getQueue(),
+      (s) => guestSaveSession(code, s),
+      setQueue
+    );
+    if (dropped > 0) notice = COPY.saveRefused;
+    if (sent > 0 || dropped > 0) {
+      const fresh = await guestLoad(code).catch(() => null);
+      if (fresh) data = fresh;
+      if (root.querySelector('.home')) showHome();
+    }
+  } finally {
+    flushing = false;
+  }
+}
+
+/** Open on the right screen: a workout in progress comes back where it was. */
+function route(resume: boolean): void {
+  const program = programOf();
+  if (!data || !program) {
+    renderNotLoaded(root);
+    return;
+  }
+  const progress = getProgress();
+  if (progress && progress.week === program.week && resume) {
+    if (progress.finished) return showAfter();
+    if (Date.now() - progress.startedAt < STALE_WORKOUT_MS) return showWorkout(progress, false);
+    setProgress(null);
+  }
+  showHome();
+}
+
+async function boot(): Promise<void> {
+  setHeader();
+  registerWorker();
+  const saved = getCode();
+  if (saved === null) {
+    showUnlock();
+    return;
+  }
+  code = saved;
+  renderLoading(root);
+  try {
+    data = await guestLoad(code);
+  } catch {
+    data = null;
+    setHeader();
+    renderNotLoaded(root);
+    return;
+  }
+  if (data === null) {
+    setCode(null);
+    showUnlock(COPY.unlockWrong);
+    return;
+  }
+  setHeader();
+  route(true);
+  void flush();
+}
+
+/** Ask the browser not to clear the phone's saved copy and queue. Ignored if unsupported. */
+async function keepStorage(): Promise<void> {
+  try {
+    await navigator.storage?.persist?.();
+  } catch {
+    /* unsupported */
+  }
+}
+
+function registerWorker(): void {
+  try {
+    if ('serviceWorker' in navigator) void navigator.serviceWorker.register('./sw.js');
+  } catch {
+    /* offline shell is a bonus */
+  }
+}
+
+void boot();
