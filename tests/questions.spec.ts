@@ -286,3 +286,37 @@ for (const width of [320, 390, 430]) {
     expect(await overflow()).toBeLessThanOrEqual(0);
   });
 }
+
+test('a slow queued session and an answer queued during it: both are sent, nothing is lost', async ({
+  page,
+  net,
+}) => {
+  withQuestions(net);
+  await openUnlocked(page);
+  await expect(page.locator('#questions-card')).toBeVisible();
+  // finish a workout while offline: it waits on the phone
+  net.online = false;
+  await runWorkout(page);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('#unsent-line')).toBeVisible();
+  // back online, but the save is slow, and answers cannot be sent yet
+  net.online = true;
+  net.saveDelayMs = 2500;
+  net.failAnswers = true;
+  await page.reload();
+  await expect(page.locator('#questions-btn')).toBeVisible();
+  await expect.poll(() => net.saves.length).toBe(1); // the flush is in flight now
+  // while it is in flight, she answers a question: it goes into the queue
+  await page.getByRole('button', { name: 'Answer a few' }).click();
+  await page.locator('#q-answer').fill('Answer during the flush');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('#toast')).toContainText('Saved on your phone');
+  net.failAnswers = false;
+  // the slow session finishes, then the loop picks the new answer up: both end up sent
+  await expect.poll(() => net.answers.length, { timeout: 15000 }).toBe(1);
+  expect(net.answers[0].p_answer.answer).toBe('Answer during the flush');
+  expect(net.saves).toHaveLength(1);
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('aw.queue')), { timeout: 5000 })
+    .toBeNull();
+});

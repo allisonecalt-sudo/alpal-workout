@@ -11,31 +11,37 @@ export function dequeue(queue: QueueItem[], clientId: string): QueueItem[] {
 }
 
 /**
- * Try to send every queued item, oldest first. Stops at the first failure so order is
- * kept. A network error keeps the item queued. An answer of ok:false (the store looked
- * and said no) drops it, because retrying cannot help; those are counted in `dropped`.
+ * Try to send every queued item, oldest first. It reads the CURRENT queue before each send and
+ * removes only the item it just dealt with, so anything queued while a send is in flight is
+ * kept (never write back a snapshot). It also picks up items queued during the flush.
+ *  - network error: stop, the item stays queued;
+ *  - ok:false with reason "locked" (the store's throttle): stop, the item stays queued;
+ *  - any other ok:false: the store looked and said no, so drop it (retrying cannot help).
  */
 export async function flushQueue(
-  queue: QueueItem[],
-  send: (s: QueueItem) => Promise<SaveResult>,
-  onChange?: (remaining: QueueItem[]) => void
-): Promise<{ remaining: QueueItem[]; sent: number; dropped: number }> {
-  let remaining = queue;
+  read: () => QueueItem[],
+  write: (queue: QueueItem[]) => void,
+  send: (item: QueueItem) => Promise<SaveResult>
+): Promise<{ sent: number; dropped: number }> {
+  const tried = new Set<string>();
   let sent = 0;
   let dropped = 0;
-  for (const s of queue) {
+  for (;;) {
+    const item = read().find((q) => !tried.has(q.client_id));
+    if (!item) break;
+    tried.add(item.client_id);
     let res: SaveResult;
     try {
-      res = await send(s);
+      res = await send(item);
     } catch {
       break;
     }
-    remaining = dequeue(remaining, s.client_id);
+    if (!res.ok && res.reason === 'locked') break;
+    write(dequeue(read(), item.client_id));
     if (res.ok) sent += 1;
     else dropped += 1;
-    onChange?.(remaining);
   }
-  return { remaining, sent, dropped };
+  return { sent, dropped };
 }
 
 export function newClientId(): string {

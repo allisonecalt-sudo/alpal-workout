@@ -141,6 +141,10 @@ export class Net {
   answerReply: unknown = null;
   /** Video player pages that were requested (the stub answers them with an empty page). */
   frames: string[] = [];
+  /** Make a save answer slowly (milliseconds). */
+  saveDelayMs = 0;
+  /** Make answer requests fail as if offline, while sessions still work. */
+  failAnswers = false;
   /** Every request that reached the stub, to check method and URL. */
   requests: { method: string; url: string; headers: Record<string, string> }[] = [];
   /** What a save answers with; null means the normal answer. */
@@ -156,6 +160,7 @@ async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<v
   }
   if (url.pathname.endsWith('/rest/v1/rpc/guest_save_session')) {
     net.saves.push(body);
+    if (net.saveDelayMs) await new Promise((r) => setTimeout(r, net.saveDelayMs));
     if (net.saveReply) return fulfill(net.saveReply);
     if (body.p_code !== net.code) return fulfill({ ok: false, reason: 'bad_code' });
     net.stored.add(String(body.p_session.client_id));
@@ -191,6 +196,7 @@ export async function installNet(page: Page, net: Net): Promise<void> {
       }
       net.requests.push({ method: req.method(), url: req.url(), headers: req.headers() });
       if (!net.online) return route.abort('failed');
+      if (net.failAnswers && req.url().includes('guest_save_answer')) return route.abort('failed');
       await handle(net, req, (b) =>
         route.fulfill({
           status: 200,

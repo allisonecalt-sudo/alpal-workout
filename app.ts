@@ -255,15 +255,17 @@ async function saveAnswer(q: Question, answer: string): Promise<'saved' | 'refus
   }
 }
 
-/** Send anything saved on the phone while offline. Runs on every app open. */
+/**
+ * Send anything saved on the phone while offline. Runs on every app open and when the phone
+ * comes back online. One flush at a time; a request that arrives mid-flush is covered because
+ * the loop re-reads the queue until nothing untried is left.
+ */
 async function flush(): Promise<void> {
   if (flushing || getQueue().length === 0) return;
   flushing = true;
   try {
-    const { sent, dropped } = await flushQueue(
-      getQueue(),
-      (item) => sendQueued(code, item),
-      setQueue
+    const { sent, dropped } = await flushQueue(getQueue, setQueue, (item) =>
+      sendQueued(code, item)
     );
     if (dropped > 0) notice = COPY.saveRefused;
     if (sent > 0 || dropped > 0) {
