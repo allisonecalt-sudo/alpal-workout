@@ -1,0 +1,12 @@
+# Force LF in the working tree for every text file, whatever core.autocrlf says
+# (prettier endOfLine is lf; the husky hook must not get \r).
+* text=auto eol=lf
+
+# Binary files: never touch line endings.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.mp3 binary
+*.woff2 binary
+*.ico binary
+*.webp binary

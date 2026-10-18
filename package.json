@@ -1,0 +1,28 @@
+{
+  "name": "alpal-workout",
+  "version": "1.0.0",
+  "description": "A small guided workout app",
+  "private": true,
+  "appVersion": "v1.0",
+  "scripts": {
+    "build": "tsc --noEmit && node scripts/build.mjs",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"**/*.{ts,html,css,json,md,mjs}\" --ignore-path .prettierignore",
+    "format:check": "prettier --check \"**/*.{ts,html,css,json,md,mjs}\" --ignore-path .prettierignore",
+    "icons": "node scripts/make-icons.mjs",
+    "test": "node scripts/pw-run.mjs",
+    "test:fast": "node scripts/pw-run.mjs --fast",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^8.57.0",
+    "husky": "^9.1.0",
+    "prettier": "^3.3.0",
+    "serve": "^14.2.0",
+    "typescript": "^5.6.0"
+  }
+}
