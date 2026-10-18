@@ -218,7 +218,7 @@ test('a refused answer (ok:false) is not queued: the message and the Tell button
   withQuestions(net);
   await openUnlocked(page);
   await expect(page.locator('#questions-card')).toBeVisible();
-  net.answerReply = { ok: false, reason: 'locked' };
+  net.answerReply = { ok: false, reason: 'no such question' };
   await page.getByRole('button', { name: 'Answer a few' }).click();
   await page.locator('#q-answer').fill('Refused answer');
   await page.getByRole('button', { name: 'Save' }).click();
