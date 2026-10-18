@@ -33,5 +33,8 @@ export const COPY = {
   doneForNow: 'Done for now',
   answerHint: 'Type, or tap the 🎤 on your keyboard to talk.',
   allAnswered: "That's all of them. Thank you! ❤️ Allison will read them.",
+  unlockLocked: 'Too many tries just now. Wait 15 minutes and try again.',
+  cantOpen: "Can't open right now. Try again in a few minutes.",
+  tryAgain: 'Try again',
   loading: 'Loading…',
 } as const;

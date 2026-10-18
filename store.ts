@@ -12,6 +12,9 @@ const SCHEMA = 'public';
 
 export class StoreError extends Error {}
 
+/** The store's brute-force throttle is on: the code may be fine, so never clear it. */
+export class StoreLocked extends StoreError {}
+
 // POST only, with the code in the JSON body: it must never appear in a URL (gateways log URLs).
 async function rpc(fn: string, body: unknown): Promise<unknown> {
   const headers: Record<string, string> = {
@@ -42,7 +45,8 @@ async function rpc(fn: string, body: unknown): Promise<unknown> {
 }
 
 /**
- * Load everything for a code. Returns null when the store does not know the code.
+ * Load everything for a code. Returns null only when the store does not know the code.
+ * Throws StoreLocked while the store's throttle is on (that is not a wrong code).
  * Network-first: if the store cannot be reached, the last good copy is used (so the app
  * opens offline); with no copy it throws StoreError.
  */
@@ -54,6 +58,9 @@ export async function guestLoad(code: string): Promise<GuestData | null> {
     const cached = getCache(code);
     if (cached) return parseGuest(cached);
     throw e;
+  }
+  if (typeof raw === 'object' && raw !== null && (raw as { locked?: unknown }).locked === true) {
+    throw new StoreLocked('locked');
   }
   if (raw === null || raw === undefined) return null;
   setCache(code, raw);

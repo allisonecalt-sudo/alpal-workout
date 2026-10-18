@@ -15,13 +15,20 @@ import {
   setQueue,
   type Progress,
 } from './storage';
-import { StoreError, guestLoad, guestSaveAnswer, guestSaveSession, sendQueued } from './store';
+import {
+  StoreError,
+  StoreLocked,
+  guestLoad,
+  guestSaveAnswer,
+  guestSaveSession,
+  sendQueued,
+} from './store';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
 import { isAnswer } from './types';
 import { APP_VERSION } from './version';
 import { renderAfter, type AfterAnswers } from './screens/after';
 import { renderHome } from './screens/home';
-import { renderLoading, renderNotLoaded } from './screens/notloaded';
+import { renderCantOpen, renderLoading, renderNotLoaded } from './screens/notloaded';
 import { renderQuestions } from './screens/questions';
 import { renderUnlock, showUnlockError } from './screens/unlock';
 import { leaveWorkout, renderWorkout } from './screens/workout';
@@ -85,7 +92,8 @@ function showUnlock(error?: string): void {
         route(false);
         void flush();
       } catch (e) {
-        if (e instanceof StoreError) showUnlockError(root, COPY.unlockOffline);
+        if (e instanceof StoreLocked) showUnlockError(root, COPY.unlockLocked);
+        else if (e instanceof StoreError) showUnlockError(root, COPY.unlockOffline);
         else throw e;
       }
     },
@@ -204,9 +212,11 @@ async function saveSession(program: Program, answers: AfterAnswers): Promise<voi
     note: answers.note,
   };
   // 'sent' = the store took it; 'refused' = it answered ok:false; 'offline' = no answer.
+  // A "locked" reply (the throttle) is not a refusal: it waits in the queue and retries.
   let outcome: 'sent' | 'refused' | 'offline' = 'offline';
   try {
-    outcome = (await guestSaveSession(code, session)).ok ? 'sent' : 'refused';
+    const res = await guestSaveSession(code, session);
+    outcome = res.ok ? 'sent' : res.reason === 'locked' ? 'offline' : 'refused';
   } catch {
     outcome = 'offline';
   }
@@ -242,6 +252,7 @@ async function saveAnswer(q: Question, answer: string): Promise<'saved' | 'refus
   const payload: AnswerPayload = { client_id: newClientId(), question_id: q.id, answer };
   try {
     const res = await guestSaveAnswer(code, payload);
+    if (!res.ok && res.reason === 'locked') throw new StoreError('locked'); // wait and retry
     if (!res.ok) return 'refused'; // not queued: retrying cannot help
     if (data) {
       data.questions = data.questions.filter((x) => x.id !== q.id);
@@ -306,10 +317,12 @@ async function boot(): Promise<void> {
   renderLoading(root);
   try {
     data = await guestLoad(code);
-  } catch {
+  } catch (e) {
     data = null;
     setHeader();
-    renderNotLoaded(root);
+    // throttled: keep the saved code and offer a retry
+    if (e instanceof StoreLocked) renderCantOpen(root, () => void boot());
+    else renderNotLoaded(root);
     return;
   }
   if (data === null) {

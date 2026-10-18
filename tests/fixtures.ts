@@ -145,6 +145,8 @@ export class Net {
   saveDelayMs = 0;
   /** Make answer requests fail as if offline, while sessions still work. */
   failAnswers = false;
+  /** When set, guest_load answers with this instead (e.g. the throttle's locked reply). */
+  loadReply: unknown = undefined;
   /** Every request that reached the stub, to check method and URL. */
   requests: { method: string; url: string; headers: Record<string, string> }[] = [];
   /** What a save answers with; null means the normal answer. */
@@ -156,6 +158,7 @@ async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<v
   const body = req.postData() ? JSON.parse(req.postData() as string) : {};
   if (url.pathname.endsWith('/rest/v1/rpc/guest_load')) {
     net.loads.push(body.p_code);
+    if (net.loadReply !== undefined) return fulfill(net.loadReply);
     return fulfill(body.p_code === net.code ? net.guest : null);
   }
   if (url.pathname.endsWith('/rest/v1/rpc/guest_save_session')) {
