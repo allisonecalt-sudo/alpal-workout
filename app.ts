@@ -5,6 +5,7 @@ import { isValidCode, normaliseCode } from './code';
 import { $, toast } from './dom';
 import { keepAwake, releaseAwake, unlockAudio } from './device';
 import { enqueue, flushQueue, newClientId } from './queue';
+import { buildSteps, movesLog } from './steps';
 import {
   getCode,
   getProgress,
@@ -14,12 +15,14 @@ import {
   setQueue,
   type Progress,
 } from './storage';
-import { StoreError, guestLoad, guestSaveSession } from './store';
-import type { GuestData, Program, SessionPayload } from './types';
+import { StoreError, guestLoad, guestSaveAnswer, guestSaveSession, sendQueued } from './store';
+import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
+import { isAnswer } from './types';
 import { APP_VERSION } from './version';
 import { renderAfter, type AfterAnswers } from './screens/after';
 import { renderHome } from './screens/home';
 import { renderLoading, renderNotLoaded } from './screens/notloaded';
+import { renderQuestions } from './screens/questions';
 import { renderUnlock, showUnlockError } from './screens/unlock';
 import { leaveWorkout, renderWorkout } from './screens/workout';
 
@@ -31,6 +34,8 @@ let data: GuestData | null = null;
 let flushing = false;
 /** Shown once on the next Home, then cleared. */
 let notice: string | null = null;
+/** The workout she picked from the chips (null = the Up next one). */
+let chosenId: string | null = null;
 
 function tellHref(): string | null {
   const digits = (data?.tellWhatsapp ?? '').replace(/\D/g, '');
@@ -91,8 +96,22 @@ function programOf(): Program | null {
   return data?.program ?? null;
 }
 
-function queuedWeeks(): number[] {
-  return getQueue().map((q) => q.week);
+function workoutOf(id: string): Workout | null {
+  return programOf()?.workouts.find((w) => w.id === id) ?? null;
+}
+
+function queuedSessions(): SessionPayload[] {
+  return getQueue().filter((q): q is SessionPayload => !isAnswer(q));
+}
+
+function queuedAnswers(): AnswerPayload[] {
+  return getQueue().filter(isAnswer);
+}
+
+/** Questions still to answer: not already waiting in the queue. */
+function openQuestions(): Question[] {
+  const waiting = new Set(queuedAnswers().map((a) => a.question_id));
+  return (data?.questions ?? []).filter((q) => !waiting.has(q.id));
 }
 
 function showHome(): void {
@@ -105,24 +124,37 @@ function showHome(): void {
   }
   const shown = notice === null ? undefined : { text: notice, tellHref: tellHref() };
   notice = null;
+  const waitingSessions = queuedSessions();
   renderHome(root, {
     data,
     program,
-    queuedWeeks: queuedWeeks(),
+    sessions: [...data.sessions, ...waitingSessions],
+    chosenId,
+    questionsLeft: openQuestions().length,
+    unsentSessions: waitingSessions.length,
+    unsentAnswers: queuedAnswers().length,
     notice: shown,
     onStart: startWorkout,
+    onChoose: (id) => {
+      chosenId = id;
+      showHome();
+    },
+    onQuestions: showQuestions,
   });
 }
 
-function startWorkout(): void {
+function startWorkout(id: string): void {
   const program = programOf();
-  if (!program) return;
+  if (!program || !workoutOf(id)) return;
   unlockAudio();
+  chosenId = null;
   const progress: Progress = {
     week: program.week,
+    workoutId: id,
     startedAt: Date.now(),
     idx: 0,
     statuses: [],
+    between: false,
     timer: null,
     finished: false,
   };
@@ -131,11 +163,15 @@ function startWorkout(): void {
 }
 
 function showWorkout(progress: Progress, speakFirst: boolean): void {
-  const program = programOf();
-  if (!program) return;
+  const workout = workoutOf(progress.workoutId);
+  if (!workout) {
+    setProgress(null);
+    showHome();
+    return;
+  }
   keepAwake();
   renderWorkout(root, {
-    program,
+    workout,
     progress,
     speakFirst,
     onFinished: () => showAfter(),
@@ -151,12 +187,18 @@ function showAfter(): void {
 
 async function saveSession(program: Program, answers: AfterAnswers): Promise<void> {
   const progress = getProgress();
-  const statuses = progress?.statuses ?? [];
+  const workout = progress ? workoutOf(progress.workoutId) : null;
+  if (!progress || !workout) {
+    setProgress(null);
+    showHome();
+    return;
+  }
   const session: SessionPayload = {
     client_id: newClientId(),
     done_at: new Date().toISOString(),
     week: program.week,
-    moves: program.moves.map((m, i) => ({ name: m.name, status: statuses[i] ?? 'skipped' })),
+    workout: workout.id,
+    moves: movesLog(buildSteps(workout), progress.statuses),
     feel: answers.feel,
     check_0_10: answers.check,
     note: answers.note,
@@ -172,6 +214,7 @@ async function saveSession(program: Program, answers: AfterAnswers): Promise<voi
     data?.sessions.unshift({
       done_at: session.done_at,
       week: session.week,
+      workout: session.workout,
       feel: session.feel,
       check_0_10: session.check_0_10,
     });
@@ -185,6 +228,33 @@ async function saveSession(program: Program, answers: AfterAnswers): Promise<voi
   showHome();
 }
 
+function showQuestions(): void {
+  leaveWorkout();
+  renderQuestions(root, {
+    questions: openQuestions(),
+    tellHref: tellHref(),
+    save: saveAnswer,
+    onDone: showHome,
+  });
+}
+
+async function saveAnswer(q: Question, answer: string): Promise<'saved' | 'refused'> {
+  const payload: AnswerPayload = { client_id: newClientId(), question_id: q.id, answer };
+  try {
+    const res = await guestSaveAnswer(code, payload);
+    if (!res.ok) return 'refused'; // not queued: retrying cannot help
+    if (data) {
+      data.questions = data.questions.filter((x) => x.id !== q.id);
+      data.answered += 1;
+    }
+    return 'saved';
+  } catch {
+    setQueue(enqueue(getQueue(), payload));
+    toast(COPY.savedLocal, 5000);
+    return 'saved';
+  }
+}
+
 /** Send anything saved on the phone while offline. Runs on every app open. */
 async function flush(): Promise<void> {
   if (flushing || getQueue().length === 0) return;
@@ -192,7 +262,7 @@ async function flush(): Promise<void> {
   try {
     const { sent, dropped } = await flushQueue(
       getQueue(),
-      (s) => guestSaveSession(code, s),
+      (item) => sendQueued(code, item),
       setQueue
     );
     if (dropped > 0) notice = COPY.saveRefused;
