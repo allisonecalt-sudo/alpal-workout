@@ -19,6 +19,7 @@ const CRITICAL = [
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
+  './apple-touch-icon.png',
   './icon.svg',
 ];
 
@@ -49,7 +50,8 @@ async function networkFirst(request, cacheName) {
     if (res.ok) cache.put(request, res.clone());
     return res;
   } catch (err) {
-    const hit = (await cache.match(request)) || (await caches.match(request, { ignoreSearch: true }));
+    const hit =
+      (await cache.match(request)) || (await caches.match(request, { ignoreSearch: true }));
     if (hit) return hit;
     throw err;
   }

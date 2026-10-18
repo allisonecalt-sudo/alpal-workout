@@ -21,6 +21,15 @@ test('the worker caches the shell under the app version and the app opens offlin
     true
   );
 
+  // the home-screen icon is part of the offline shell
+  const cached = await page.evaluate(async () => {
+    const keys = await caches.keys();
+    const shell = keys.find((k) => k.endsWith('-shell'));
+    if (!shell) return false;
+    return (await (await caches.open(shell)).match('apple-touch-icon.png')) !== undefined;
+  });
+  expect(cached).toBe(true);
+
   // wait until the worker controls the page, then go offline and reopen
   await expect
     .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
