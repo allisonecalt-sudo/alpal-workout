@@ -2,7 +2,15 @@
 // questions card, the quiet line, past weeks. Tapping a move opens a read-only sheet.
 import { COPY } from '../copy';
 import { $, esc } from '../dom';
-import { doneIds, movePlain, upNext, weekRows, type SessionLite } from '../program';
+import {
+  doneIds,
+  movePlain,
+  nextWorkout,
+  sessionsThisWeek,
+  weekIsDone,
+  weekRows,
+  type SessionLite,
+} from '../program';
 import { partLines } from '../steps';
 import type { GuestData, Move, Program, Workout } from '../types';
 import { moveInfoHtml, wireMoveInfo } from './moveinfo';
@@ -77,14 +85,17 @@ function openSheet(root: HTMLElement, move: Move): void {
 export function renderHome(root: HTMLElement, opts: HomeOptions): void {
   const { data, program } = opts;
   const done = doneIds(opts.sessions, program.week);
-  const doneThisWeek = opts.sessions.filter((s) => s.week === program.week).length;
+  const doneThisWeek = sessionsThisWeek(opts.sessions, program.week);
   const dotCount = Math.max(program.sessionsPerWeek, doneThisWeek);
   const dots = Array.from(
     { length: dotCount },
     (_, i) => `<span class="dot${i < doneThisWeek ? ' filled' : ''}"></span>`
   ).join('');
 
-  const next = upNext(program.workouts, done);
+  // the week is done only when the session count reaches sessionsPerWeek
+  const next = weekIsDone(opts.sessions, program)
+    ? null
+    : nextWorkout(program.workouts, opts.sessions, program.week);
   const picked = program.workouts.find((w) => w.id === opts.chosenId) ?? null;
   const shown = picked ?? next;
 
@@ -92,7 +103,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
   if (shown === null) {
     card = `
       <div class="card today">
-        <p id="all-done">All ${program.workouts.length} done this week 🎉</p>
+        <p id="all-done">All ${program.sessionsPerWeek} done this week 🎉</p>
         <p class="chips-line" id="chips-line"><span>Extra one?</span> ${program.workouts
           .map((w) => chip(w, done))
           .join('')}</p>

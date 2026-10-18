@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { doneIds, movePlain, parseGuest, parseProgram, upNext, weekRows } from '../program';
+import {
+  doneIds,
+  movePlain,
+  nextWorkout,
+  parseGuest,
+  parseProgram,
+  weekIsDone,
+  weekRows,
+} from '../program';
 
 const base = {
   week: 2,
@@ -118,13 +126,49 @@ test('guest: questions and the answered count come through; ids may be numbers',
   expect(g?.sessions[0].workout).toBe('A');
 });
 
-test('up next: the first workout, in the data order, not done this week', () => {
+test('up next: the first workout, in the data order, not yet done this week', () => {
+  const ws = parseProgram(rounds)?.workouts ?? [];
+  const at = (workout: string, d: number) => ({
+    week: 1,
+    workout,
+    done_at: `2026-10-${10 + d}T08:00:00Z`,
+  });
+  expect(nextWorkout(ws, [], 1)?.id).toBe('A');
+  expect(nextWorkout(ws, [at('A', 0)], 1)?.id).toBe('B');
+  expect(nextWorkout(ws, [at('B', 0)], 1)?.id).toBe('A');
+  // an earlier week does not count
+  expect(nextWorkout(ws, [{ week: 0, workout: 'A' }], 1)?.id).toBe('A');
+});
+
+test('up next cycles back when every workout is done once: fewest times, then oldest', () => {
+  const ws = parseProgram(rounds)?.workouts ?? [];
+  const at = (workout: string, d: number) => ({
+    week: 1,
+    workout,
+    done_at: `2026-10-${10 + d}T08:00:00Z`,
+  });
+  // both done once: the older one (A) comes round again
+  expect(nextWorkout(ws, [at('A', 0), at('B', 1)], 1)?.id).toBe('A');
+  expect(nextWorkout(ws, [at('B', 0), at('A', 1)], 1)?.id).toBe('B');
+  // A twice, B once: B has the fewest
+  expect(nextWorkout(ws, [at('A', 0), at('B', 1), at('A', 2)], 1)?.id).toBe('B');
+});
+
+test('one workout: it is up next again and again', () => {
+  const one = parseProgram(base)?.workouts ?? [];
+  expect(
+    nextWorkout(one, [{ week: 1, workout: 'A', done_at: '2026-10-10T08:00:00Z' }], 1)?.id
+  ).toBe('A');
+});
+
+test('the week is done only when the session count reaches sessionsPerWeek', () => {
   const p = parseProgram(rounds);
-  const ws = p?.workouts ?? [];
-  expect(upNext(ws, new Set())?.id).toBe('A');
-  expect(upNext(ws, new Set(['A']))?.id).toBe('B');
-  expect(upNext(ws, new Set(['B']))?.id).toBe('A');
-  expect(upNext(ws, new Set(['A', 'B']))).toBeNull();
+  if (!p) throw new Error('program');
+  const s = (n: number) => Array.from({ length: n }, () => ({ week: 1, workout: 'A' }));
+  expect(weekIsDone(s(2), p)).toBe(false);
+  expect(weekIsDone(s(3), p)).toBe(true);
+  expect(weekIsDone(s(4), p)).toBe(true);
+  expect(weekIsDone([{ week: 0, workout: 'A' }, ...s(2)], p)).toBe(false);
 });
 
 test('done ids count only this program week', () => {

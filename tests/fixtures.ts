@@ -292,10 +292,6 @@ export async function openUnlocked(page: Page): Promise<void> {
 
 /** Home, tap Start, go through all three moves with Done. */
 export async function runWorkout(page: Page): Promise<void> {
-  // when this week's workout is already done, pick it from the chips for an extra one
-  if ((await page.locator('#start-btn').count()) === 0) {
-    await page.locator('#chips-line .chip').first().click();
-  }
   await page.locator('#start-btn').click();
   await page.locator('#done-btn').click();
   await page.locator('#done-btn').click();

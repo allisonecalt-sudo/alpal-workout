@@ -4,6 +4,7 @@ import {
   makeGuest,
   makeRoundsProgram,
   openUnlocked,
+  runWorkout,
   test,
   type Net,
 } from './fixtures';
@@ -289,4 +290,86 @@ test('every button on the Up next card, the chips and the between screen is 44px
   await page.getByRole('button', { name: 'Start' }).click();
   for (let k = 0; k < 4; k++) await page.locator('#done-btn').click();
   await check();
+});
+
+// --- the week is done only when the session count reaches sessionsPerWeek ---
+
+test('one workout, three sessions a week: Start stays until the third is saved', async ({
+  page,
+  net,
+}) => {
+  net.guest = makeGuest({ sessions: [] });
+  await openUnlocked(page);
+  for (const n of [1, 2]) {
+    await runWorkout(page);
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('#week-words')).toHaveText(`${n} of 3 this week`);
+    await expect(page.locator('#all-done')).toHaveCount(0);
+    await expect(page.locator('#up-next')).toHaveText('Up next · Week 1');
+    await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
+  }
+  await runWorkout(page);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('#all-done')).toHaveText('All 3 done this week 🎉');
+  await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
+  await expect(page.locator('#chips-line .chip')).toHaveText(['A ✓']);
+});
+
+test('three workouts, three sessions: each once, then the week is done', async ({ page, net }) => {
+  roundsGuest(net);
+  await openUnlocked(page);
+  const names = ['Workout A', 'Workout B', 'Workout C'];
+  for (let k = 0; k < 3; k++) {
+    await expect(page.locator('#up-next')).toHaveText(`Up next · ${names[k]}`);
+    await page.getByRole('button', { name: 'Start' }).click();
+    // skip through the whole workout quickly
+    for (let guard = 0; guard < 20; guard++) {
+      if (await page.getByRole('heading', { name: 'Done! 🎉' }).isVisible()) break;
+      const finish = page.getByRole('button', { name: 'Finish now' });
+      if (await finish.isVisible()) await finish.click();
+      else await page.locator('#done-btn').click();
+    }
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('#greeting')).toBeVisible();
+  }
+  await expect(page.locator('#all-done')).toHaveText('All 3 done this week 🎉');
+});
+
+test('two workouts, three sessions: the third cycles back to the one done longest ago', async ({
+  page,
+  net,
+}) => {
+  net.guest = makeGuest({
+    program: makeRoundsProgram({
+      workouts: (makeRoundsProgram().workouts as unknown[]).slice(0, 2),
+    }),
+    sessions: [
+      { done_at: '2026-10-11T08:00:00Z', week: 1, workout: 'B', feel: null, check_0_10: null },
+      { done_at: '2026-10-12T08:00:00Z', week: 1, workout: 'A', feel: null, check_0_10: null },
+    ],
+  });
+  await openUnlocked(page);
+  // both done once, 2 of 3: not all done; B was done longest ago
+  await expect(page.locator('#all-done')).toHaveCount(0);
+  await expect(page.locator('#week-words')).toHaveText('2 of 3 this week');
+  await expect(page.locator('#up-next')).toHaveText('Up next · Workout B');
+  await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
+});
+
+test('two workouts, three sessions: done at three', async ({ page, net }) => {
+  net.guest = makeGuest({
+    program: makeRoundsProgram({
+      workouts: (makeRoundsProgram().workouts as unknown[]).slice(0, 2),
+    }),
+    sessions: ['A', 'B', 'A'].map((w, k) => ({
+      done_at: `2026-10-1${k}T08:00:00Z`,
+      week: 1,
+      workout: w,
+      feel: null,
+      check_0_10: null,
+    })),
+  });
+  await openUnlocked(page);
+  await expect(page.locator('#all-done')).toHaveText('All 3 done this week 🎉');
+  await expect(page.locator('#chips-line .chip')).toHaveText(['A ✓', 'B ✓']);
 });

@@ -160,6 +160,7 @@ export function parseGuest(raw: unknown): GuestData | null {
 export interface SessionLite {
   week: number | null;
   workout: string | null;
+  done_at?: string;
 }
 
 /** Which workouts are done in this program week. */
@@ -169,9 +170,42 @@ export function doneIds(sessions: SessionLite[], week: number): Set<string> {
   return ids;
 }
 
-/** The first workout, in the data's order, not yet done this week. null when all are done. */
-export function upNext(workouts: Workout[], done: Set<string>): Workout | null {
-  return workouts.find((w) => !done.has(w.id)) ?? null;
+/** How many sessions count toward this program week (any workout). */
+export function sessionsThisWeek(sessions: SessionLite[], week: number): number {
+  return sessions.filter((s) => s.week === week).length;
+}
+
+/** The week is done only when the session count reaches sessionsPerWeek. */
+export function weekIsDone(sessions: SessionLite[], program: Program): boolean {
+  return sessionsThisWeek(sessions, program.week) >= program.sessionsPerWeek;
+}
+
+/**
+ * Up next: the first workout, in the data's order, not yet done this week. When every one has
+ * been done once, cycle back to the one done the fewest times this week, then the one done
+ * longest ago. (The caller decides whether the week is already done.)
+ */
+export function nextWorkout(
+  workouts: Workout[],
+  sessions: SessionLite[],
+  week: number
+): Workout | null {
+  const inWeek = sessions.filter((s) => s.week === week);
+  const fresh = workouts.find((w) => !inWeek.some((s) => s.workout === w.id));
+  if (fresh) return fresh;
+  let best: Workout | null = null;
+  let bestCount = Infinity;
+  let bestLast = '';
+  for (const w of workouts) {
+    const mine = inWeek.filter((s) => s.workout === w.id);
+    const last = mine.map((s) => s.done_at ?? '').reduce((a, b) => (a > b ? a : b), '');
+    if (mine.length < bestCount || (mine.length === bestCount && last < bestLast)) {
+      best = w;
+      bestCount = mine.length;
+      bestLast = last;
+    }
+  }
+  return best;
 }
 
 /** "Week 2 · A ✓ B ✓ C" per program week, newest first. One workout: "Week 1 · 2 of 3". */
