@@ -241,3 +241,23 @@ test('a note is sent as plain text, whatever it contains', async ({ page, net })
   await expect(page.locator('#week-words')).toBeVisible();
   expect(net.saves[0].p_session.note).toBe('<b>hi</b> & "quotes"');
 });
+
+test('coming back online sends the queue without reopening the app', async ({ page, net }) => {
+  await openUnlocked(page);
+  await expect(page.locator('#greeting')).toBeVisible();
+  net.online = false;
+  await runWorkout(page);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('#unsent-line')).toBeVisible();
+  expect(net.saves).toHaveLength(0);
+  // the phone gets a connection back: the browser fires "online"
+  net.online = true;
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect.poll(() => net.saves.length).toBe(1);
+  await expect(page.locator('#unsent-line')).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('aw.queue'))).toBeNull();
+  // and a second "online" event does not send it again
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await page.waitForTimeout(400);
+  expect(net.saves).toHaveLength(1);
+});

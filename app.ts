@@ -352,4 +352,9 @@ function registerWorker(): void {
   }
 }
 
+// Coming back online retries the queue too, not only opening the app.
+window.addEventListener('online', () => {
+  if (code !== '') void flush();
+});
+
 void boot();
