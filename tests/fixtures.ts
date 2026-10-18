@@ -31,11 +31,81 @@ export function makeProgram(over: Partial<FakeProgram> = {}): FakeProgram {
   };
 }
 
+export interface FakeQuestion {
+  id: string;
+  section: string;
+  text: string;
+}
+
+export const QUESTIONS: FakeQuestion[] = [
+  { id: 'q1', section: 'Section one', text: 'Question one?' },
+  { id: 'q2', section: 'Section one', text: 'Question two?' },
+  { id: 'q3', section: 'Section two', text: 'Question three?' },
+];
+
+type FakeMove = {
+  name: string;
+  how: string[];
+  reps?: string;
+  seconds?: number;
+  video?: string;
+  why?: string;
+  tips?: string[];
+  watchOut?: string[];
+};
+
+/** Several workouts with rounds. A: 2 warm-up, 2 main x 2 rounds, 1 cool-down. */
+export function makeRoundsProgram(over: Record<string, unknown> = {}): Record<string, unknown> {
+  const main = (n: string): FakeMove[] => [
+    { name: n + ' one', how: ['Steady'], reps: '8 times' },
+    { name: n + ' two', how: ['Hold it'], reps: '5 each side' },
+  ];
+  return {
+    week: 1,
+    label: 'Week 1',
+    sessionsPerWeek: 3,
+    restSeconds: 0,
+    workouts: [
+      {
+        id: 'A',
+        name: 'Workout A',
+        minutes: 30,
+        warmup: [
+          {
+            name: 'Warm one',
+            how: ['Easy start'],
+            reps: '5 times',
+            video: 'https://youtu.be/abcdefghijk',
+            why: 'A reason',
+            tips: ['Tip one', 'Tip two'],
+            watchOut: ['Careful one'],
+          },
+          { name: 'Warm two', how: ['Loosen up'], seconds: 20 },
+        ],
+        main: main('Main'),
+        rounds: 2,
+        cooldown: [{ name: 'Cool one', how: ['Slow down'], reps: '3 times' }],
+      },
+      { id: 'B', name: 'Workout B', minutes: 25, main: main('Bee'), rounds: 1 },
+      { id: 'C', name: 'Workout C', minutes: 20, main: main('Sea'), rounds: 3 },
+    ],
+    ...over,
+  };
+}
+
 export interface FakeGuest {
   name: string;
   tell_whatsapp: string | null;
-  program: FakeProgram | null;
-  sessions: { done_at: string; week: number; feel: string | null; check_0_10: number | null }[];
+  program: FakeProgram | Record<string, unknown> | null;
+  sessions: {
+    done_at: string;
+    week: number;
+    workout?: string | null;
+    feel: string | null;
+    check_0_10: number | null;
+  }[];
+  questions: FakeQuestion[];
+  answered: number;
 }
 
 export function makeGuest(over: Partial<FakeGuest> = {}): FakeGuest {
@@ -44,6 +114,8 @@ export function makeGuest(over: Partial<FakeGuest> = {}): FakeGuest {
     tell_whatsapp: PHONE,
     program: makeProgram(),
     sessions: [{ done_at: '2026-10-12T08:00:00Z', week: 1, feel: 'right', check_0_10: 2 }],
+    questions: [],
+    answered: 0,
     ...over,
   };
 }
@@ -63,6 +135,12 @@ export class Net {
   /** client_ids the fake store already holds (it ignores repeats, like the real one). */
   stored = new Set<string>();
   unexpected: string[] = [];
+  /** Answers that reached the stub. */
+  answers: { p_code: string; p_answer: Record<string, unknown> }[] = [];
+  /** What an answer replies with; null means the normal answer. */
+  answerReply: unknown = null;
+  /** Video player pages that were requested (the stub answers them with an empty page). */
+  frames: string[] = [];
   /** Every request that reached the stub, to check method and URL. */
   requests: { method: string; url: string; headers: Record<string, string> }[] = [];
   /** What a save answers with; null means the normal answer. */
@@ -83,6 +161,11 @@ async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<v
     net.stored.add(String(body.p_session.client_id));
     return fulfill({ ok: true });
   }
+  if (url.pathname.endsWith('/rest/v1/rpc/guest_save_answer')) {
+    net.answers.push(body);
+    if (net.answerReply) return fulfill(net.answerReply);
+    return fulfill(body.p_code === net.code ? { ok: true } : { ok: false, reason: 'bad code' });
+  }
   net.unexpected.push(`${req.method()} ${req.url()}`);
   return fulfill(null);
 }
@@ -98,6 +181,10 @@ export async function installNet(page: Page, net: Net): Promise<void> {
         'access-control-allow-methods': 'POST, OPTIONS',
       };
       if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      if (new URL(req.url()).hostname === 'www.youtube-nocookie.com') {
+        net.frames.push(req.url());
+        return route.fulfill({ status: 200, contentType: 'text/html', body: '<html></html>' });
+      }
       if (!req.url().includes('supabase.co/rest/v1/rpc/')) {
         net.unexpected.push(`${req.method()} ${req.url()}`);
         return route.abort('failed');
@@ -205,6 +292,10 @@ export async function openUnlocked(page: Page): Promise<void> {
 
 /** Home, tap Start, go through all three moves with Done. */
 export async function runWorkout(page: Page): Promise<void> {
+  // when this week's workout is already done, pick it from the chips for an extra one
+  if ((await page.locator('#start-btn').count()) === 0) {
+    await page.locator('#chips-line .chip').first().click();
+  }
   await page.locator('#start-btn').click();
   await page.locator('#done-btn').click();
   await page.locator('#done-btn').click();

@@ -6,18 +6,19 @@ test("Home shows the name, the week dots, today's card and the quiet line", asyn
   await expect(page.locator('#dots .dot')).toHaveCount(3);
   await expect(page.locator('#dots .dot.filled')).toHaveCount(1);
   await expect(page.locator('#week-words')).toHaveText('1 of 3 this week');
-  await expect(page.locator('#week-label')).toHaveText('Week 1');
-  await expect(page.locator('#move-list li')).toHaveCount(3);
-  await expect(page.locator('#move-list li').nth(0)).toContainText('Move one');
-  await expect(page.locator('#move-list li').nth(0)).toContainText('8 times');
-  await expect(page.locator('#move-list li').nth(1)).toContainText('30 s');
+  await expect(page.locator('#up-next')).toHaveText('Up next · Week 1');
+  await expect(page.locator('#parts summary')).toHaveText(['Main · 3 moves']);
+  await expect(page.locator('#parts .move-list li')).toHaveCount(3);
+  await expect(page.locator('#parts .move-list li').nth(0)).toContainText('Move one');
+  await expect(page.locator('#parts .move-list li').nth(0)).toContainText('8 times');
+  await expect(page.locator('#parts .move-list li').nth(1)).toContainText('30 s');
   await expect(page.locator('#minutes')).toHaveText('About 8 min');
   await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
   await expect(page.locator('#quiet-line')).toHaveText(
     'This app is yours. Tell Allison anything you want changed — suggestions welcome.'
   );
   await expect(page.locator('#past-weeks li')).toHaveText(['Week 1 · 1 of 3']);
-  await expect(page.locator('#app-version')).toHaveText('v1.0');
+  await expect(page.locator('#app-version')).toHaveText('v1.1');
 });
 
 test('past weeks are listed newest first', async ({ page, net }) => {
@@ -76,7 +77,7 @@ test('a malformed program also fails loud and never invents a workout', async ({
   });
   await openUnlocked(page);
   await expect(page.locator('#not-loaded')).toBeVisible();
-  await expect(page.locator('#move-list')).toHaveCount(0);
+  await expect(page.locator('#parts')).toHaveCount(0);
 });
 
 test('the store being unreachable with nothing saved fails loud', async ({ page, net }) => {

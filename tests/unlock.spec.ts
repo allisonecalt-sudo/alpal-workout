@@ -98,5 +98,5 @@ test('a failed unlock does not ask to persist storage', async ({ page }) => {
 
 test('the version tag is shown on every screen', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('#app-version')).toHaveText('v1.0');
+  await expect(page.locator('#app-version')).toHaveText('v1.1');
 });
