@@ -199,3 +199,41 @@ for (const width of [320, 390, 430]) {
     expect(await overflow()).toBeLessThanOrEqual(0);
   });
 }
+
+test('very long unbroken words in how, why, tips, watch-out and the move name wrap at 320px', async ({
+  page,
+  net,
+}) => {
+  const long = 'x'.repeat(120);
+  const program = makeRoundsProgram();
+  const first = (program.workouts as Record<string, unknown>[])[0];
+  first.warmup = [
+    {
+      name: `Name${long}`,
+      how: [`How${long}`],
+      reps: '5 times',
+      why: `Why${long}`,
+      tips: [`Tip${long}`],
+      watchOut: [`Out${long}`],
+    },
+  ];
+  setup(net, program);
+  await page.setViewportSize({ width: 320, height: 640 });
+  const overflow = (): Promise<number> =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+  await openUnlocked(page);
+  await page.locator('#parts summary', { hasText: 'Warm-up' }).click();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await page.locator('.move-link').first().click();
+  await page.locator('.sheet #more summary').click();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  expect(
+    await page.locator('.sheet').evaluate((el) => el.scrollWidth - el.clientWidth)
+  ).toBeLessThanOrEqual(0);
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.locator('#more summary').click();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+});

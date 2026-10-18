@@ -568,3 +568,18 @@ input[type='text'] {
 .card h2:first-child {
   margin-top: 0;
 }
+
+/* Long words from the store must wrap, never push the page sideways */
+.how,
+.how li,
+.more,
+.more li,
+.more p,
+.q-text,
+.q-section,
+.sheet-inner,
+.reps,
+.mv-name,
+.move-link {
+  overflow-wrap: anywhere;
+}

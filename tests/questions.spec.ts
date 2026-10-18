@@ -320,3 +320,18 @@ test('a slow queued session and an answer queued during it: both are sent, nothi
     .poll(() => page.evaluate(() => localStorage.getItem('aw.queue')), { timeout: 5000 })
     .toBeNull();
 });
+
+test('a very long unbroken question wraps at 320px', async ({ page, net }) => {
+  net.guest = makeGuest({
+    questions: [{ id: 'q1', section: 'S'.repeat(80), text: 'Q'.repeat(150) }],
+    answered: 0,
+  });
+  await page.setViewportSize({ width: 320, height: 640 });
+  await openUnlocked(page);
+  await page.getByRole('button', { name: 'Answer a few' }).click();
+  await expect(page.locator('#q-text')).toBeVisible();
+  const over = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+  );
+  expect(over).toBeLessThanOrEqual(0);
+});
