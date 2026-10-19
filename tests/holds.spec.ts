@@ -135,35 +135,49 @@ async function runningHold(page: import('@playwright/test').Page, net: Net): Pro
   await openUnlocked(page);
   await startWorkout(page);
   await page.locator('#timer-btn').click();
-  await expect(page.locator('#timer-btn')).toHaveText('Stop', { timeout: 6000 });
-  await page.waitForTimeout(1500);
+  await expect(page.locator('#timer-btn')).toHaveText('Stop', { timeout: 15_000 });
 }
 
 /**
- * Pretend the hold started `seconds` earlier (the page was away that long) and reload, in one
- * step: nothing can save the page's own copy over the change in between.
+ * The page was away while the hold ran, and comes back with it having run `heldMs` in all. The
+ * clock is fixed for the page that loads (so no real second can change the answer), until
+ * `thawClock` is called. The change is made as the new page starts, after the old page has gone,
+ * so nothing of the old page can save over it.
  */
-async function shiftHoldStart(
+async function reloadAfterHoldRan(
   page: import('@playwright/test').Page,
-  seconds: number
+  heldMs: number
 ): Promise<void> {
-  await page.evaluate((ms) => {
-    const p = JSON.parse(localStorage.getItem('aw.progress') as string);
-    p.hold.run.startedAt -= ms;
+  await page.addInitScript((ms) => {
+    if (sessionStorage.getItem('__heldshift')) return; // only the first load after this call
+    sessionStorage.setItem('__heldshift', '1');
+    const realNow = Date.now.bind(Date);
+    const frozen = realNow();
+    Date.now = () => frozen;
+    (window as unknown as { __thaw: () => void }).__thaw = () => {
+      Date.now = realNow;
+    };
+    const raw = localStorage.getItem('aw.progress');
+    if (!raw) return;
+    const p = JSON.parse(raw);
+    p.hold.run.startedAt = frozen - ms;
     localStorage.setItem('aw.progress', JSON.stringify(p));
-    location.reload();
-  }, seconds * 1000);
+  }, heldMs);
+  await page.reload();
   await page.waitForLoadState('load');
 }
 
-test('a reload mid-hold counts what the timer would have shown: held 1.5 s, gone 8 s, about 9 to 11 s', async ({
+const thawClock = (page: import('@playwright/test').Page): Promise<void> =>
+  page.evaluate(() => (window as unknown as { __thaw: () => void }).__thaw());
+
+test('a reload mid-hold counts what the timer would have shown: it had run 9.4 s, so 9 s', async ({
   page,
   net,
 }) => {
   await runningHold(page, net);
-  await shiftHoldStart(page, 8);
+  await reloadAfterHoldRan(page, 9400);
   const held = page.locator('#held');
-  await expect(held).toHaveText(/^✓ held (9|10|11|12) s$/);
+  await expect(held).toHaveText('✓ held 9 s');
   const first = await held.textContent();
   const seconds = Number(/(\d+) s/.exec(first ?? '')?.[1]);
   // finish and save: those are the seconds in the readings
@@ -177,7 +191,7 @@ test('a reload mid-hold counts what the timer would have shown: held 1.5 s, gone
 
 test('the count after a reload is capped at the hold length', async ({ page, net }) => {
   await runningHold(page, net);
-  await shiftHoldStart(page, 600);
+  await reloadAfterHoldRan(page, 600_000);
   await expect(page.locator('#held')).toHaveText('✓ held 30 s');
 });
 
@@ -186,10 +200,11 @@ test('after the first moment back, idle time never counts, and two reloads add n
   net,
 }) => {
   await runningHold(page, net);
-  await shiftHoldStart(page, 5);
+  await reloadAfterHoldRan(page, 5000);
   const held = page.locator('#held');
-  await expect(held).toHaveText(/^✓ held \d+ s$/);
+  await expect(held).toHaveText('✓ held 5 s');
   const first = await held.textContent();
+  await thawClock(page); // real time runs again: the idle seconds below must not count
   await page.waitForTimeout(2500); // idle time after the page is back
   expect(await held.textContent()).toBe(first);
   await page.reload();
