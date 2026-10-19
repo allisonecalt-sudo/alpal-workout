@@ -126,9 +126,12 @@ test('answering all of them shows the thank-you and the card disappears', async 
   withQuestions(net);
   await openUnlocked(page);
   await page.getByRole('button', { name: 'Answer a few' }).click();
-  for (const a of ['one', 'two', 'three']) {
+  const next = ['Question two?', 'Question three?', ''];
+  for (const [k, a] of ['one', 'two', 'three'].entries()) {
     await page.locator('#q-answer').fill(a);
     await page.getByRole('button', { name: 'Save' }).click();
+    // wait for the next question to be drawn before typing again (the save is asynchronous)
+    if (next[k] !== '') await expect(page.locator('#q-text')).toHaveText(next[k]);
   }
   await expect(page.locator('#all-answered')).toHaveText(
     "That's all of them. Thank you! ❤️ Allison will read them."
