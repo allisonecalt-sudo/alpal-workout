@@ -120,6 +120,7 @@ for (const width of [320, 390, 402, 430]) {
     );
     expect(over).toBeLessThanOrEqual(0);
     for (const b of await page.locator('button').all()) {
+      if (!(await b.isVisible())) continue;
       const box = await b.boundingBox();
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     }

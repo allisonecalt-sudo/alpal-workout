@@ -143,6 +143,9 @@ test('the flow: warm-up, rounds with a between screen, cool-down, then After and
   await done.click();
   await expect(line).toHaveText('Round 2 of 2 · move 2 of 2');
   await done.click();
+  // Warm two was skipped: the question comes first
+  await expect(page.locator('#redo-title')).toHaveText('1 skipped — do them now?');
+  await page.getByRole('button', { name: 'Finish' }).click();
   // the last round has no between screen: straight to the cool-down list
   await expect(page.locator('#cooldown')).toBeVisible();
   await expect(line).toHaveText('Cool-down');

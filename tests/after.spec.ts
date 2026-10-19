@@ -49,6 +49,8 @@ test('saving online sends the exact RPC body, every field, and returns Home with
   await page.locator('#done-btn').click(); // Move one: done
   await page.getByRole('button', { name: 'Skip' }).click(); // Move two: skipped
   await page.getByRole('button', { name: 'This hurts' }).click(); // Move three: hurt
+  await expect(page.locator('#redo-title')).toBeVisible();
+  await page.getByRole('button', { name: 'Finish' }).click();
   await page.locator('#after-body [data-value="5"]').click();
   await page.locator('#after-mood [data-value="8"]').click();
   await page.locator('[data-feel="right"]').click();
@@ -103,6 +105,8 @@ test('After: the title, the summary line and the skipped count', async ({ page, 
   await page.locator('#done-btn').click();
   await page.getByRole('button', { name: 'Skip' }).click();
   await page.getByRole('button', { name: 'Skip' }).click();
+  await expect(page.locator('#redo-title')).toBeVisible();
+  await page.getByRole('button', { name: 'Finish' }).click();
   await expect(page.locator('#after-title')).toHaveText('Nice. Week 1 done.');
   await expect(page.locator('#after-summary')).toHaveText('1 round · 2 of 3 this week');
   await expect(page.locator('#after-skipped')).toHaveText('2 moves skipped');
@@ -115,6 +119,8 @@ test('After: one skipped move is singular, none shows no line', async ({ page })
   await page.locator('#done-btn').click();
   await page.locator('#done-btn').click();
   await page.getByRole('button', { name: 'Skip' }).click();
+  await expect(page.locator('#redo-title')).toBeVisible();
+  await page.getByRole('button', { name: 'Finish' }).click();
   await expect(page.locator('#after-skipped')).toHaveText('1 move skipped');
   await page.reload();
   await expect(page.locator('#after-skipped')).toHaveText('1 move skipped');

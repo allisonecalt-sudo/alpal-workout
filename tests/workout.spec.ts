@@ -45,6 +45,8 @@ test('Skip and This hurts record the move and move on, with a gentle line', asyn
   await expect(page.locator('#progress-line')).toHaveText('Move 3 of 3');
   expect((await progress(page)).statuses).toEqual(['skipped', 'hurt']);
   await page.locator('#done-btn').click();
+  await expect(page.locator('#redo-title')).toHaveText('1 skipped — do them now?');
+  await page.getByRole('button', { name: 'Finish' }).click();
   await expect(page.locator('#after-title')).toBeVisible();
 });
 
@@ -110,6 +112,7 @@ test('workout buttons are at least 44px tall and nothing scrolls sideways', asyn
   await startWorkout(page);
   await page.locator('#done-btn').click();
   for (const b of await page.locator('button').all()) {
+    if (!(await b.isVisible())) continue;
     const box = await b.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   }
