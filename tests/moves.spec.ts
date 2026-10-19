@@ -1,4 +1,12 @@
-import { expect, makeGuest, makeRoundsProgram, openUnlocked, test, type Net } from './fixtures';
+import {
+  expect,
+  makeGuest,
+  makeRoundsProgram,
+  openUnlocked,
+  test,
+  type Net,
+  startWorkout,
+} from './fixtures';
 
 const EMBED =
   'https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&modestbranding=1';
@@ -9,7 +17,7 @@ function setup(net: Net, program: Record<string, unknown> = makeRoundsProgram())
 
 async function startA(page: import('@playwright/test').Page): Promise<void> {
   await openUnlocked(page);
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   await expect(page.locator('#move-name')).toHaveText('Warm one');
 }
 
@@ -74,7 +82,7 @@ test('opening a video stops the voice, and the voice does not start over it', as
       orig();
     };
   });
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   await expect(page.locator('#video-btn')).toBeVisible();
   const before = await page.evaluate(() => (window as unknown as { __cancels: number }).__cancels);
   const spokenBefore = await page.evaluate(
@@ -125,7 +133,7 @@ test('a move with no extra info has no More block, and only the parts present sh
   w.warmup = [{ name: 'Warm two', how: ['Loosen up'], seconds: 20 }];
   setup(net, program);
   await openUnlocked(page);
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   await expect(page.locator('#more')).toHaveCount(0);
   await expect(page.locator('#video-btn')).toHaveCount(0);
 });
@@ -193,7 +201,7 @@ for (const width of [320, 390, 430]) {
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     }
     await page.getByRole('button', { name: 'Close' }).click();
-    await page.getByRole('button', { name: 'Start' }).click();
+    await startWorkout(page);
     await page.locator('#video-btn').click();
     await expect(page.locator('#video-holder iframe')).toBeVisible();
     expect(await overflow()).toBeLessThanOrEqual(0);
@@ -233,7 +241,7 @@ test('very long unbroken words in how, why, tips, watch-out and the move name wr
     await page.locator('.sheet').evaluate((el) => el.scrollWidth - el.clientWidth)
   ).toBeLessThanOrEqual(0);
   await page.getByRole('button', { name: 'Close' }).click();
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   await page.locator('#more summary').click();
   expect(await overflow()).toBeLessThanOrEqual(0);
 });
