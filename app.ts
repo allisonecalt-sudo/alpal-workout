@@ -4,8 +4,10 @@ import { COPY } from './copy';
 import { isValidCode, normaliseCode } from './code';
 import { $, toast } from './dom';
 import { keepAwake, releaseAwake, unlockAudio } from './device';
+import { endProgress, newProgress, type Progress } from './progress';
+import { buildPayload } from './session';
 import { enqueue, flushQueue, newClientId } from './queue';
-import { buildSteps, movesLog } from './steps';
+import { buildSteps } from './steps';
 import {
   getCode,
   getProgress,
@@ -15,7 +17,7 @@ import {
   setProgress,
   setQueue,
   setSafetySeen,
-  type Progress,
+  setDoneToday,
 } from './storage';
 import {
   StoreError,
@@ -26,17 +28,21 @@ import {
   guestSaveSession,
   sendQueued,
 } from './store';
+import { sessionsThisWeek } from './program';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
 import { isAnswer } from './types';
 import { APP_VERSION, BUILD_SHORT } from './version';
-import { renderAfter, type AfterAnswers } from './screens/after';
+import { renderAfter } from './screens/after';
+import { renderBefore } from './screens/before';
+import { leaveCooldown, renderCooldown } from './screens/cooldown';
 import { renderHome } from './screens/home';
 import { renderCantOpen, renderLoading, renderNotLoaded } from './screens/notloaded';
 import { renderQuestions } from './screens/questions';
 import { renderUnlock, showUnlockError } from './screens/unlock';
-import { leaveWorkout, renderWorkout } from './screens/workout';
+import { leaveWorkout, renderWorkout, type RunExit } from './screens/workout';
 
-const STALE_WORKOUT_MS = 12 * 60 * 60 * 1000;
+/** A workout untouched for this long is not resumed on its own. */
+const STALE_WORKOUT_MS = 3 * 60 * 60 * 1000;
 
 const root = $(document, '#app');
 let code = '';
@@ -176,63 +182,116 @@ function showHome(): void {
 function startWorkout(id: string): void {
   const program = programOf();
   if (!program || !workoutOf(id)) return;
-  unlockAudio();
   chosenId = null;
-  const progress: Progress = {
-    week: program.week,
-    workoutId: id,
-    startedAt: Date.now(),
-    idx: 0,
-    statuses: [],
-    between: false,
-    timer: null,
-    finished: false,
-  };
+  const progress = newProgress(program.week, id, Date.now());
   setProgress(progress);
-  showWorkout(progress, true);
+  showStage(progress, false);
 }
 
-function showWorkout(progress: Progress, speakFirst: boolean): void {
-  const workout = workoutOf(progress.workoutId);
-  if (!workout) {
+/** What to do when the workout screens say they are done. */
+function afterRun(progress: Progress, to: RunExit): void {
+  if (to === 'home') {
     setProgress(null);
     showHome();
     return;
   }
-  keepAwake();
-  renderWorkout(root, {
-    workout,
-    progress,
-    speakFirst,
-    onFinished: () => showAfter(),
-  });
+  showStage(progress, false);
 }
 
-function showAfter(): void {
+let stopTimeLine: (() => void) | null = null;
+
+/** Draw the screen for where she is in the workout (Before, the moves, the cool-down, After). */
+function showStage(progress: Progress, resumed: boolean): void {
+  stopTimeLine?.();
+  stopTimeLine = null;
+  leaveWorkout();
+  leaveCooldown();
   const program = programOf();
-  if (!program) return;
-  releaseAwake();
-  renderAfter(root, { program, onSave: (answers) => saveSession(program, answers) });
-}
-
-async function saveSession(program: Program, answers: AfterAnswers): Promise<void> {
-  const progress = getProgress();
-  const workout = progress ? workoutOf(progress.workoutId) : null;
-  if (!progress || !workout) {
+  const workout = workoutOf(progress.workoutId);
+  if (!program || !workout) {
     setProgress(null);
     showHome();
     return;
   }
-  const session: SessionPayload = {
-    client_id: newClientId(),
-    done_at: new Date().toISOString(),
-    week: program.week,
-    workout: workout.id,
-    moves: movesLog(buildSteps(workout), progress.statuses),
-    feel: answers.feel,
-    check_0_10: answers.check,
-    note: answers.note,
-  };
+  if (progress.stage === 'before') {
+    releaseAwake();
+    stopTimeLine = renderBefore(root, {
+      program,
+      workout,
+      before: progress.before,
+      onChange: () => setProgress(progress),
+      onStart: () => {
+        unlockAudio();
+        progress.startedAt = progress.before.startAt;
+        progress.stage = 'run';
+        setProgress(progress);
+        showStage(progress, false);
+      },
+      onHome: () => {
+        setProgress(null);
+        showHome();
+      },
+    });
+  } else if (progress.stage === 'run') {
+    keepAwake();
+    renderWorkout(root, {
+      program,
+      workout,
+      progress,
+      speakFirst: !resumed && progress.idx === 0 && progress.statuses.length === 0,
+      resumed,
+      onExit: (to) => afterRun(progress, to),
+    });
+  } else if (progress.stage === 'cooldown') {
+    keepAwake();
+    renderCooldown(root, {
+      workout,
+      progress,
+      onBack: () => {
+        const last = buildSteps(workout, progress.before.lite).length - 1;
+        progress.stage = 'run';
+        progress.idx = last;
+        progress.statuses = progress.statuses.slice(0, last);
+        delete progress.holds[String(last)];
+        setProgress(progress);
+        showStage(progress, false);
+      },
+      onFinish: (how) => {
+        if (how === 'stopped') {
+          progress.stoppedAt = { part: 'cooldown', round: 1, move: null };
+        } else progress.cooldownStatus = how;
+        endProgress(progress, Date.now());
+        setProgress(progress);
+        showStage(progress, false);
+      },
+      onQuit: () => {
+        setProgress(null);
+        showHome();
+      },
+    });
+  } else {
+    releaseAwake();
+    stopTimeLine = renderAfter(root, {
+      program,
+      workout,
+      progress,
+      weekCount:
+        sessionsThisWeek([...(data?.sessions ?? []), ...queuedSessions()], program.week) + 1,
+      onChange: () => setProgress(progress),
+      onSave: () => saveSession(progress),
+    });
+  }
+}
+
+async function saveSession(progress: Progress): Promise<void> {
+  const program = programOf();
+  const workout = workoutOf(progress.workoutId);
+  if (!program || !workout) {
+    setProgress(null);
+    showHome();
+    return;
+  }
+  const session = buildPayload(progress, workout, program.week, newClientId());
   // 'sent' = the store took it; 'refused' = it answered ok:false; 'offline' = no answer.
   // A "locked" reply (the throttle) is not a refusal: it waits in the queue and retries.
   let outcome: 'sent' | 'refused' | 'offline' = 'offline';
@@ -244,6 +303,7 @@ async function saveSession(program: Program, answers: AfterAnswers): Promise<voi
   }
   if (outcome === 'sent') {
     data?.sessions.unshift({
+      client_id: session.client_id,
       done_at: session.done_at,
       week: session.week,
       workout: session.workout,
@@ -256,6 +316,7 @@ async function saveSession(program: Program, answers: AfterAnswers): Promise<voi
   } else {
     notice = COPY.saveRefused;
   }
+  if (outcome !== 'refused') setDoneToday({ workoutId: workout.id, at: Date.now() });
   setProgress(null);
   showHome();
 }
@@ -323,8 +384,7 @@ function route(resume: boolean): void {
   }
   const progress = getProgress();
   if (progress && progress.week === program.week && resume) {
-    if (progress.finished) return showAfter();
-    if (Date.now() - progress.startedAt < STALE_WORKOUT_MS) return showWorkout(progress, false);
+    if (Date.now() - progress.lastActiveAt < STALE_WORKOUT_MS) return showStage(progress, true);
     setProgress(null);
   }
   showHome();

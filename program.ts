@@ -60,7 +60,19 @@ function parseWorkout(raw: unknown): Workout | null {
     typeof raw.rounds === 'number' && Number.isInteger(raw.rounds) && raw.rounds >= 1
       ? raw.rounds
       : 1;
-  return { id: raw.id, name: raw.name, minutes: raw.minutes, warmup, main, rounds, cooldown };
+  const workout: Workout = {
+    id: raw.id,
+    name: raw.name,
+    minutes: raw.minutes,
+    warmup,
+    main,
+    rounds,
+    cooldown,
+  };
+  if (typeof raw.restSeconds === 'number' && raw.restSeconds > 0) {
+    workout.restSeconds = Math.round(raw.restSeconds);
+  }
+  return workout;
 }
 
 /**
@@ -111,6 +123,7 @@ export function parseProgram(raw: unknown): Program | null {
   if (typeof checkLabel === 'string' && checkLabel !== '') program.checkLabel = checkLabel;
   const safety = strings(data.safety);
   if (safety) program.safety = safety;
+  if (typeof data.painRule === 'string' && data.painRule !== '') program.painRule = data.painRule;
   return program;
 }
 
@@ -121,6 +134,7 @@ function parseFeel(v: unknown): Feel | null {
 function parseSession(raw: unknown): SessionSummary | null {
   if (!isObj(raw) || typeof raw.done_at !== 'string') return null;
   return {
+    client_id: typeof raw.client_id === 'string' ? raw.client_id : null,
     done_at: raw.done_at,
     week: typeof raw.week === 'number' ? raw.week : null,
     workout: typeof raw.workout === 'string' && raw.workout !== '' ? raw.workout : null,

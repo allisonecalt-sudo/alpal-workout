@@ -618,3 +618,224 @@ input[type='text'] {
 .safety li {
   margin-bottom: 6px;
 }
+
+/* Workout bar: Back on the left; Pause, Exit and Voice on the right */
+.runbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+}
+
+.runbar-right {
+  display: flex;
+  gap: 6px;
+}
+
+.back-link {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.icon-btn {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--text);
+  font-size: 1.15rem;
+  cursor: pointer;
+}
+
+.icon-btn[aria-pressed='false'] {
+  opacity: 0.7;
+}
+
+.pain-rule {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Holds */
+.get-ready {
+  text-align: center;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
+.held {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 12px 0;
+}
+
+/* Rest */
+.ring {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 8px auto;
+}
+
+.ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring-bg,
+.ring-fg {
+  fill: none;
+  stroke-width: 8;
+}
+
+.ring-bg {
+  stroke: var(--soft);
+}
+
+.ring-fg {
+  stroke: var(--dot);
+  stroke-linecap: round;
+}
+
+.ring-count {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rest-next {
+  text-align: center;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* Exit sheet and Paused */
+.exit-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(58, 46, 31, 0.45);
+}
+
+.exit-card {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 16px calc(var(--safe-bottom) + 20px);
+  border-radius: 20px 20px 0 0;
+  background: var(--card);
+}
+
+.exit-title {
+  margin: 0 0 4px;
+}
+
+.paused-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 16px;
+}
+
+.paused-inner {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+/* Before and After: time lines, chips, cool-down rows */
+.before .runbar {
+  margin: -8px 0 0;
+}
+
+.timing-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.timing-line {
+  margin: 0;
+}
+
+.timing-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.timing-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chip-inline {
+  flex: none;
+  min-width: 52px;
+}
+
+.lite-chip {
+  flex: none;
+  width: 100%;
+  margin-top: 16px;
+  text-align: left;
+}
+
+.lite-chip.suggested {
+  border-color: var(--dot);
+  box-shadow: 0 0 0 2px var(--dot);
+}
+
+.warn {
+  color: var(--text);
+  font-style: italic;
+  min-height: 1.2em;
+  margin: 0;
+}
+
+.cd-row {
+  border-top: 1px solid var(--line);
+}
+
+.cd-row summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.cd-row[open] {
+  padding-bottom: 8px;
+}

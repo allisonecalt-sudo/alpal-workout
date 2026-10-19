@@ -1,7 +1,7 @@
 // Everything kept on the phone, in one place. Every read and write is wrapped, because
 // localStorage can throw (private windows, blocked site data) and the app must still run.
-import type { MoveStatus, QueueItem } from './types';
-import type { TimerState } from './timer';
+import { normaliseProgress, type Progress } from './progress';
+import type { QueueItem } from './types';
 
 const K = {
   code: 'aw.code',
@@ -10,6 +10,7 @@ const K = {
   queue: 'aw.queue',
   cache: 'aw.cache',
   safety: 'aw.safety',
+  done: 'aw.done',
 } as const;
 
 function read(key: string): string | null {
@@ -54,28 +55,25 @@ export function setVoice(on: boolean): void {
   write(K.voice, on ? 'on' : 'off');
 }
 
-export interface Progress {
-  week: number;
-  workoutId: string;
-  startedAt: number;
-  /** The next step to do (an index into the workout's flat step list). */
-  idx: number;
-  /** One status per step finished so far. */
-  statuses: MoveStatus[];
-  /** The between-rounds screen is showing (idx is the first step of the next round). */
-  between: boolean;
-  timer: TimerState | null;
-  /** All moves are through: the After screen is next. */
-  finished: boolean;
-}
-
 export function getProgress(): Progress | null {
-  const p = readJson<Progress>(K.progress);
-  // a workout saved by an older version has no workout id: start fresh
-  return p && typeof p.workoutId === 'string' ? p : null;
+  return normaliseProgress(readJson<unknown>(K.progress));
 }
 export function setProgress(p: Progress | null): void {
+  if (p !== null) p.lastActiveAt = Date.now();
   write(K.progress, p === null ? null : JSON.stringify(p));
+}
+
+/** The workout she just saved, for the "Done" card on Home until midnight. */
+export interface DoneToday {
+  workoutId: string;
+  at: number;
+}
+export function getDoneToday(): DoneToday | null {
+  const d = readJson<DoneToday>(K.done);
+  return d && typeof d.workoutId === 'string' && typeof d.at === 'number' ? d : null;
+}
+export function setDoneToday(d: DoneToday | null): void {
+  write(K.done, d === null ? null : JSON.stringify(d));
 }
 
 export function getQueue(): QueueItem[] {

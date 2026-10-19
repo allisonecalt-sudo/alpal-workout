@@ -11,12 +11,13 @@ function list(items: string[] | undefined): string {
     : '';
 }
 
-export function moveInfoHtml(move: Move): string {
+/** `suffix` keeps the ids apart when several moves are on one page (the cool-down list). */
+export function moveInfoHtml(move: Move, suffix = ''): string {
   const how = move.how.map((l) => `<li>${esc(l)}</li>`).join('');
   const hasVideo = move.video !== undefined && youtubeId(move.video) !== null;
   const video = hasVideo
-    ? `<button type="button" class="btn btn-soft" id="video-btn" aria-expanded="false">▶ Watch how</button>
-       <div id="video-holder" class="video-holder"></div>`
+    ? `<button type="button" class="btn btn-soft" id="video-btn${suffix}" aria-expanded="false">▶ Watch how</button>
+       <div id="video-holder${suffix}" class="video-holder"></div>`
     : '';
   const more = [
     move.why ? `<h3>Why</h3><p>${esc(move.why)}</p>` : '',
@@ -26,14 +27,14 @@ export function moveInfoHtml(move: Move): string {
   const details =
     more === ''
       ? ''
-      : `<details class="more" id="more"><summary>More about this move</summary>${more}</details>`;
-  return `<ul class="how" id="how">${how}</ul>${video}${details}`;
+      : `<details class="more" id="more${suffix}"><summary>More about this move</summary>${more}</details>`;
+  return `<ul class="how" id="how${suffix}">${how}</ul>${video}${details}`;
 }
 
 /** Wire the Watch button. The player is created on the first tap and removed on Hide. */
-export function wireMoveInfo(root: HTMLElement, move: Move): void {
-  const btn = root.querySelector<HTMLButtonElement>('#video-btn');
-  const holder = root.querySelector<HTMLElement>('#video-holder');
+export function wireMoveInfo(root: HTMLElement, move: Move, suffix = ''): void {
+  const btn = root.querySelector<HTMLButtonElement>(`#video-btn${suffix}`);
+  const holder = root.querySelector<HTMLElement>(`#video-holder${suffix}`);
   if (!btn || !holder || move.video === undefined) return;
   const id = youtubeId(move.video);
   if (id === null) return;

@@ -21,6 +21,8 @@ export interface Workout {
   main: Move[];
   rounds: number;
   cooldown: Move[];
+  /** Rest between main moves, in seconds (0 or missing = none). */
+  restSeconds?: number;
 }
 
 export interface Program {
@@ -33,9 +35,12 @@ export interface Program {
   checkLabel?: string;
   /** General tips shown in a card above Up next (data only; no text in code). */
   safety?: string[];
+  /** One sentence shown on every move card (data only; no text in code). */
+  painRule?: string;
 }
 
 export interface SessionSummary {
+  client_id: string | null;
   done_at: string;
   week: number | null;
   workout: string | null;
@@ -70,10 +75,29 @@ export interface SessionMove {
   status: MoveStatus;
 }
 
+export interface StoppedAt {
+  part: Part;
+  round: number;
+  move: string | null;
+}
+
+/** Extra readings saved with a session (kept small: the store caps them at 8 KB). */
+export interface Readings {
+  before?: { body: number | null; mood: number | null; check: number | null };
+  after?: { body: number | null; mood: number | null };
+  /** Seconds held, per move name, one entry per time it was held. */
+  holds?: Record<string, number[]>;
+  stopped_at?: StoppedAt;
+}
+
 /** What is sent to the store for one finished workout. */
 export interface SessionPayload {
   client_id: string;
   done_at: string;
+  started_at: string;
+  duration_sec: number;
+  lite: boolean;
+  readings: Readings;
   week: number;
   workout: string;
   moves: SessionMove[];
