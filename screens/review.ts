@@ -19,7 +19,10 @@ export interface ReviewOptions {
 }
 
 export function renderReview(root: HTMLElement, opts: ReviewOptions): void {
-  const weeks = opts.weeks;
+  // never page into a week that has not started: the last page is the active week
+  const activeWeekNumber = opts.weeks.find((x) => x.active)?.week ?? null;
+  const weeks =
+    activeWeekNumber === null ? opts.weeks : opts.weeks.filter((x) => x.week <= activeWeekNumber);
   let index = Math.max(
     0,
     weeks.findIndex((w) => w.week === opts.startWeek)
@@ -33,7 +36,7 @@ export function renderReview(root: HTMLElement, opts: ReviewOptions): void {
     const inWeek = opts.items.filter((i) => i.record.week === w.week);
     const workouts = sessionsOfWeek(all, w.week);
     const activeWeek = weeks.find((x) => x.active)?.week ?? null;
-    const future = activeWeek !== null && w.week > activeWeek;
+    const future = false; // future weeks are never shown
     const open = w.active;
 
     const totals: string[] = [];
@@ -49,7 +52,7 @@ export function renderReview(root: HTMLElement, opts: ReviewOptions): void {
     const usual = usualPerWeek(all, per, activeWeek);
     const usualLine =
       usual && !future
-        ? `<p class="quiet" id="review-usual">Your usual: ${usual.usual} a week · this week: ${workouts.length}</p>`
+        ? `<p class="quiet" id="review-usual">Your usual: ${usual.usual} a week · ${open ? 'this week' : 'that week'}: ${workouts.length}</p>`
         : '';
 
     let status = '';
