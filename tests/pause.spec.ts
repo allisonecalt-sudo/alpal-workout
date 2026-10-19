@@ -26,11 +26,13 @@ test('Pause opens a full-screen "Paused" with Resume and Exit', async ({ page, n
   await expect(overlay.getByRole('heading', { name: 'Paused' })).toBeVisible();
   await expect(overlay.getByRole('button', { name: 'Resume' })).toBeVisible();
   await expect(overlay.getByRole('button', { name: /Exit/ })).toBeVisible();
-  // it covers the screen
+  // it covers the screen below the header (the header, and its Note button, stay on top)
   const box = await overlay.boundingBox();
+  const head = await page.locator('header.top').boundingBox();
   const vp = page.viewportSize();
   expect(box?.width).toBe(vp?.width);
-  expect(box?.height).toBe(vp?.height);
+  expect(box?.y).toBeCloseTo((head?.y ?? 0) + (head?.height ?? 0), 0);
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBe(vp?.height);
   await overlay.getByRole('button', { name: 'Resume' }).click();
   await expect(page.locator('#paused-overlay')).toHaveCount(0);
   await expect(page.locator('#progress-line')).toHaveText('Warm-up · 1 of 2');

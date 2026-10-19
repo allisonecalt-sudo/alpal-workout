@@ -16,6 +16,8 @@
   --radius: 18px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* the sticky header is exactly this tall; full-screen sheets start below it */
+  --top-h: calc(var(--safe-top) + 56px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -454,13 +456,13 @@ input[type='text'] {
 
 .sheet {
   position: fixed;
-  inset: 0;
+  inset: var(--top-h) 0 0 0;
   z-index: 10;
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg);
-  padding: calc(var(--safe-top) + 16px) max(16px, env(safe-area-inset-right))
-    calc(var(--safe-bottom) + 24px) max(16px, env(safe-area-inset-left));
+  padding: 16px max(16px, env(safe-area-inset-right)) calc(var(--safe-bottom) + 24px)
+    max(16px, env(safe-area-inset-left));
 }
 
 .sheet-inner {
@@ -743,6 +745,8 @@ input[type='text'] {
 }
 
 .exit-card {
+  max-height: calc(100vh - var(--top-h) - 8px);
+  overflow-y: auto;
   width: 100%;
   max-width: 520px;
   display: flex;
@@ -759,7 +763,7 @@ input[type='text'] {
 
 .paused-overlay {
   position: fixed;
-  inset: 0;
+  inset: var(--top-h) 0 0 0;
   z-index: 40;
   display: flex;
   align-items: center;
@@ -930,7 +934,7 @@ input[type='text'] {
 }
 
 .steps-card {
-  max-height: 85vh;
+  max-height: calc(100vh - var(--top-h) - 8px);
 }
 
 .steps-list {
@@ -1266,6 +1270,8 @@ html {
   position: sticky;
   top: 0;
   z-index: 55;
+  box-sizing: border-box;
+  min-height: var(--top-h);
   padding-top: calc(var(--safe-top) + 8px);
   padding-bottom: 4px;
   background: var(--bg);
