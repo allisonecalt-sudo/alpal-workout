@@ -208,6 +208,10 @@ export class Net {
   messages: { url: string; body: { p_code: string; p_msg: Record<string, unknown> } }[] = [];
   /** What a note save replies with; null means the normal answer. */
   messageReply: unknown = null;
+  /** Spoken-explanation requests that reached the stub. */
+  audioCalls: { url: string; body: { p_code: string; p_name: string } }[] = [];
+  /** What the store says about a move's audio, by move name (default: it has some). */
+  audioMode: Record<string, 'ok' | 'missing' | 'locked'> = {};
 }
 
 async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<void>) {
@@ -230,6 +234,16 @@ async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<v
     net.notes.push(body);
     if (net.noteReply) return fulfill(net.noteReply);
     return fulfill(body.p_code === net.code ? { ok: true } : { ok: false, reason: 'bad code' });
+  }
+  if (url.pathname.endsWith('/rest/v1/rpc/guest_get_audio')) {
+    net.audioCalls.push({ url: req.url(), body });
+    const mode = net.audioMode[body.p_name] ?? 'ok';
+    if (mode === 'missing') return fulfill({ missing: true });
+    if (mode === 'locked') return fulfill({ locked: true });
+    return fulfill({
+      mime: 'audio/mpeg',
+      b64: Buffer.from('fake mp3 ' + body.p_name).toString('base64'),
+    });
   }
   if (url.pathname.endsWith('/rest/v1/rpc/guest_save_message')) {
     net.messages.push({ url: req.url(), body });
@@ -294,6 +308,7 @@ export async function installDevices(page: Page): Promise<void> {
     w.__osc = 0;
     w.__tones = [] as number[];
     w.__spoken = [] as string[];
+    w.__cancels = 0;
     w.__locks = 0;
     w.__persist = 0;
     Object.defineProperty(StorageManager.prototype, 'persist', {
@@ -336,7 +351,7 @@ export async function installDevices(page: Page): Promise<void> {
       configurable: true,
       value: {
         speak: (u: { text: string }) => (w.__spoken as string[]).push(u.text),
-        cancel() {},
+        cancel: () => (w.__cancels as number)++,
       },
     });
     // a microphone that can record (the headless browsers have none)

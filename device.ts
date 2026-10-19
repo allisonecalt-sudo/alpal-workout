@@ -1,4 +1,4 @@
-// Phone features that may or may not exist: beep, voice, keep-awake. Each one is silently
+// Phone features that may or may not exist: beep, keep-awake. Each one is silently
 // skipped when unsupported or blocked.
 
 import { getBeeps } from './storage';
@@ -66,24 +66,6 @@ export function chime(): void {
   if (!getBeeps() || beepsMuted) return;
   tone(CHIME_HZ, 0, 0.25, 0.15);
   tone(CHIME_HZ * 1.5, 0.28, 0.4, 0.15);
-}
-
-export function speak(text: string): void {
-  try {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-  } catch {
-    /* no voice */
-  }
-}
-
-export function stopSpeaking(): void {
-  try {
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-  } catch {
-    /* no voice */
-  }
 }
 
 let lock: WakeLockSentinel | null = null;

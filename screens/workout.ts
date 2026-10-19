@@ -4,7 +4,8 @@
 // Everything is saved after every change, so a reload picks up on the same step.
 import { COPY } from '../copy';
 import { $, esc, toast } from '../dom';
-import { chime, goBeep, speak, stopSpeaking, tick, unlockAudio } from '../device';
+import { stopAudio } from '../audio';
+import { chime, goBeep, tick, unlockAudio } from '../device';
 import {
   afterReload,
   heldSoFar,
@@ -29,14 +30,7 @@ import {
   stoppedAtOf,
   type Step,
 } from '../steps';
-import {
-  getCardio,
-  getGetReady,
-  getRestOverride,
-  getVoice,
-  setCardio,
-  setProgress,
-} from '../storage';
+import { getCardio, getGetReady, getRestOverride, setCardio, setProgress } from '../storage';
 import { formatRemaining, isFinished, newTimer, remainingMs, startTimer } from '../timer';
 import type { Feel, MoveStatus, Program, Workout } from '../types';
 import { moveInfoHtml, wireMoveInfo } from './moveinfo';
@@ -70,7 +64,7 @@ let tickHandle: number | undefined;
 export function leaveWorkout(): void {
   window.clearInterval(tickHandle);
   tickHandle = undefined;
-  stopSpeaking();
+  stopAudio();
   closeExitSheet();
   closeStepSheet();
   closePaused();
@@ -277,7 +271,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     const done = steps[progress.idx - 1].round;
     root.innerHTML = `
       <section class="workout between">
-        ${runBarHtml(false, true)}
+        ${runBarHtml(true)}
         <h1 id="between-title">Round ${done} done 👏 · Round ${done + 1} of ${rounds}</h1>
         <div class="actions">
           <button type="button" class="btn btn-main" id="next-round-btn">Next round</button>
@@ -298,7 +292,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     const name = progress.feelAsk ?? '';
     root.innerHTML = `
       <section class="workout feel">
-        ${runBarHtml(false, true)}
+        ${runBarHtml(true)}
         <h1 id="move-feel-title">How was ${esc(name)}?</h1>
         <div class="chips" id="move-feel">${FEELS.map(
           (f) =>
@@ -327,7 +321,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     const skipped = skippedSteps(progress.statuses, steps);
     root.innerHTML = `
       <section class="workout between">
-        ${runBarHtml(false, true)}
+        ${runBarHtml(true)}
         <h1 id="redo-title">${skipped.length} skipped — do them now?</h1>
         <div class="actions">
           <button type="button" class="btn btn-main" id="redo-yes">${esc(COPY.doThem)}</button>
@@ -359,7 +353,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     if (!t) return;
     root.innerHTML = `
       <section class="workout rest" id="rest-screen">
-        ${runBarHtml(false, true)}
+        ${runBarHtml(true)}
         <p class="progress-line">${esc(COPY.rest)}</p>
         <div class="ring">
           <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -406,7 +400,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     const last = getCardio();
     root.innerHTML = `
       <section class="workout choice">
-        ${runBarHtml(false, true)}
+        ${runBarHtml(true)}
         <p class="progress-line" id="progress-line">${esc(progressLabel(step, workout, rounds))}</p>
         <h1 class="move-name" id="move-name">${esc(step.move.name)}</h1>
         <ul class="how" id="how">${step.move.how.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
@@ -477,7 +471,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
         : '';
     root.innerHTML = `
       <section class="workout">
-        ${runBarHtml(true, true)}
+        ${runBarHtml(true)}
         <p class="progress-line" id="progress-line">${esc(progressLabel(step, workout, rounds))}</p>
         <h1 class="move-name" id="move-name">${esc(move.name)}</h1>
         ${badges}
@@ -504,9 +498,6 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
       advance('hurt');
     });
     if (hold) wireHold(step);
-    if (speakIt && getVoice() && progress.pausedAt === null) {
-      speak([move.name, move.how[0] ?? ''].join('. '));
-    }
   };
 
   const holdHtml = (h: HoldState): string => {
@@ -595,6 +586,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
   };
 
   const show = (speakIt: boolean): void => {
+    stopAudio(); // a new screen is a new move: its explanation does not carry over
     window.clearInterval(tickHandle);
     tickHandle = undefined;
     closeExitSheet();

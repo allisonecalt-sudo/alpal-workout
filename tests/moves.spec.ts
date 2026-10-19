@@ -67,36 +67,6 @@ test('the player is gone on the next move', async ({ page, net }) => {
   await expect(page.locator('#video-btn')).toHaveCount(0); // that move has no video
 });
 
-test('opening a video stops the voice, and the voice does not start over it', async ({
-  page,
-  net,
-}) => {
-  setup(net);
-  await openUnlocked(page);
-  await page.evaluate(() => {
-    const w = window as unknown as { __cancels: number; speechSynthesis: { cancel: () => void } };
-    w.__cancels = 0;
-    const orig = w.speechSynthesis.cancel;
-    w.speechSynthesis.cancel = () => {
-      w.__cancels++;
-      orig();
-    };
-  });
-  await startWorkout(page);
-  await expect(page.locator('#video-btn')).toBeVisible();
-  const before = await page.evaluate(() => (window as unknown as { __cancels: number }).__cancels);
-  const spokenBefore = await page.evaluate(
-    () => (window as unknown as { __spoken: string[] }).__spoken.length
-  );
-  await page.locator('#video-btn').click();
-  expect(await page.evaluate(() => (window as unknown as { __cancels: number }).__cancels)).toBe(
-    before + 1
-  );
-  expect(
-    await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken.length)
-  ).toBe(spokenBefore);
-});
-
 test('a link it cannot read shows no button', async ({ page, net }) => {
   const program = makeRoundsProgram();
   const first = (program.workouts as { warmup: { video: string }[] }[])[0].warmup[0];

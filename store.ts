@@ -97,6 +97,26 @@ export async function guestSaveMessage(code: string, msg: MessagePayload): Promi
   return parseSave(await rpc('guest_save_message', { p_code: code, p_msg: msg }));
 }
 
+/** What the store says about one move's spoken explanation. */
+export type AudioReply =
+  | { kind: 'ok'; mime: string; b64: string }
+  | { kind: 'missing' }
+  | { kind: 'locked' }
+  | { kind: 'unknown' };
+
+/** The spoken explanation of a move. Throws StoreError when offline. */
+export async function guestGetAudio(code: string, name: string): Promise<AudioReply> {
+  const raw = await rpc('guest_get_audio', { p_code: code, p_name: name });
+  if (typeof raw !== 'object' || raw === null) return { kind: 'unknown' };
+  const r = raw as { missing?: unknown; locked?: unknown; mime?: unknown; b64?: unknown };
+  if (r.locked === true) return { kind: 'locked' };
+  if (r.missing === true) return { kind: 'missing' };
+  if (typeof r.b64 === 'string' && r.b64 !== '') {
+    return { kind: 'ok', mime: typeof r.mime === 'string' ? r.mime : 'audio/mpeg', b64: r.b64 };
+  }
+  return { kind: 'unknown' };
+}
+
 /** Change the note of a saved session. Throws StoreError when offline (the caller queues it). */
 export async function guestUpdateNote(
   code: string,

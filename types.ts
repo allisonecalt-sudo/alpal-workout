@@ -18,6 +18,8 @@ export interface Move {
   /** Small badges on the move card, and a quick "how was it" after the last round. */
   new?: boolean;
   stepped?: boolean;
+  /** A spoken explanation is waiting in the store: show the Hear how button. */
+  audio?: boolean;
 }
 
 export interface MoveOption {
@@ -49,6 +51,8 @@ export interface Program {
   safety?: string[];
   /** One sentence shown on every move card (data only; no text in code). */
   painRule?: string;
+  /** Changes when the spoken explanations are replaced, so the phone fetches them again. */
+  audioVersion?: string;
 }
 
 /** One saved (or waiting) session, as the history shows it. */

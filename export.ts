@@ -2,7 +2,6 @@
 import type { GuestData, QueueItem } from './types';
 
 export interface ExportSettings {
-  voice: boolean;
   beeps: boolean;
   restSeconds: number | null;
   getReadySeconds: number;

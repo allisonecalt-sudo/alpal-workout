@@ -6,7 +6,6 @@ import type { WalkState } from './walk';
 
 const K = {
   code: 'aw.code',
-  voice: 'aw.voice',
   progress: 'aw.progress',
   queue: 'aw.queue',
   cache: 'aw.cache',
@@ -106,14 +105,6 @@ export function clearPhone(): void {
   write(K.cache, null);
   write(K.done, null);
   write(K.walk, null);
-}
-
-/** Voice is OFF until she turns it on. Nothing ever speaks the first time. */
-export function getVoice(): boolean {
-  return read(K.voice) === 'on';
-}
-export function setVoice(on: boolean): void {
-  write(K.voice, on ? 'on' : 'off');
 }
 
 export function getProgress(): Progress | null {

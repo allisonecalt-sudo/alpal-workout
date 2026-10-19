@@ -1,9 +1,8 @@
-// The strip across the top of every workout screen (Back, Pause, Exit, Voice) and the two
+// The strip across the top of every workout screen (Back, Pause, Exit) and the two
 // things it opens: the "Stop here?" sheet and the full-screen "Paused".
 import { COPY } from '../copy';
 import { $ } from '../dom';
-import { stopSpeaking } from '../device';
-import { getVoice, setVoice } from '../storage';
+import { stopAudio } from '../audio';
 
 export interface RunBarHandlers {
   onBack: () => void;
@@ -12,8 +11,7 @@ export interface RunBarHandlers {
   onExit: () => void;
 }
 
-/** `showVoice` is false on screens that never speak. */
-export function runBarHtml(showVoice = true, showSteps = false): string {
+export function runBarHtml(showSteps = false): string {
   return `<div class="runbar">
       <button type="button" class="back-link" id="back-btn" aria-label="Back one step">‹ Back</button>
       <span class="runbar-right">
@@ -24,34 +22,25 @@ export function runBarHtml(showVoice = true, showSteps = false): string {
         }
         <button type="button" class="icon-btn" id="pause-btn" aria-label="Pause workout">⏸</button>
         <button type="button" class="icon-btn" id="exit-btn" aria-label="Exit">✕</button>
-        ${
-          showVoice
-            ? `<button type="button" class="icon-btn" id="voice-btn" aria-label="Voice" aria-pressed="false"></button>`
-            : ''
-        }
       </span>
     </div>`;
 }
 
 export function wireRunBar(root: HTMLElement, h: RunBarHandlers): void {
-  $(root, '#back-btn').addEventListener('click', h.onBack);
-  $(root, '#pause-btn').addEventListener('click', h.onPause);
-  $(root, '#exit-btn').addEventListener('click', h.onExit);
+  // leaving the move (Back, Pause, Exit) stops the explanation
+  $(root, '#back-btn').addEventListener('click', () => {
+    stopAudio();
+    h.onBack();
+  });
+  $(root, '#pause-btn').addEventListener('click', () => {
+    stopAudio();
+    h.onPause();
+  });
+  $(root, '#exit-btn').addEventListener('click', () => {
+    stopAudio();
+    h.onExit();
+  });
   root.querySelector('#steps-btn')?.addEventListener('click', () => h.onSteps?.());
-  const voice = root.querySelector<HTMLButtonElement>('#voice-btn');
-  if (voice) {
-    const paint = (): void => {
-      const on = getVoice();
-      voice.textContent = on ? '🔊' : '🔇';
-      voice.setAttribute('aria-pressed', String(on));
-    };
-    paint();
-    voice.addEventListener('click', () => {
-      setVoice(!getVoice());
-      paint();
-      if (!getVoice()) stopSpeaking();
-    });
-  }
 }
 
 export interface ExitHandlers {

@@ -1,5 +1,6 @@
 // The cool-down as one list: every move on one page (left/right pairs folded into "each side"),
 // a rough length, each row opens its how-to and video, then one Done or Skip.
+import { stopAudio } from '../audio';
 import { COPY } from '../copy';
 import { $, esc } from '../dom';
 import { movePlain } from '../program';
@@ -29,6 +30,7 @@ export interface CooldownOptions {
 }
 
 export function leaveCooldown(): void {
+  stopAudio();
   closeExitSheet();
   closePaused();
 }
@@ -50,7 +52,7 @@ export function renderCooldown(root: HTMLElement, opts: CooldownOptions): void {
     .join('');
   root.innerHTML = `
     <section class="workout cooldown" id="cooldown">
-      ${runBarHtml(false)}
+      ${runBarHtml()}
       <p class="progress-line" id="progress-line">${esc(COPY.cooldownTitle)}</p>
       <h1 class="move-name">${esc(COPY.cooldownTitle)}</h1>
       <p class="quiet" id="cooldown-minutes">~${cooldownMinutes(workout.cooldown)} min</p>

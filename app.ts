@@ -6,6 +6,7 @@ import { $, toast } from './dom';
 import { keepAwake, releaseAwake, unlockAudio } from './device';
 import { sameDay } from './clock';
 import { idbClearAll } from './idb';
+import { forgetMissing, setExplainSource } from './explain';
 import { flushNotes, forgetNotes, listNotes, refreshWaiting, waitingCount } from './notes';
 import { endProgress, newProgress, type Progress } from './progress';
 import { buildPayload, recordOfPayload } from './session';
@@ -20,7 +21,6 @@ import {
   getWalk,
   getGetReady,
   getRestOverride,
-  getVoice,
   getProgress,
   getSafetySeen,
   getQueue,
@@ -68,6 +68,7 @@ const root = $(document, '#app');
 let code = '';
 let data: GuestData | null = null;
 let flushing = false;
+setExplainSource(() => ({ code, version: data?.program?.audioVersion ?? '' }));
 /** What she did with the safety card this visit; redraws keep it. */
 let safetyChoice: { week: number; open: boolean } | null = null;
 /** The store is throttling but a saved copy is shown: one quiet line says so. */
@@ -550,7 +551,6 @@ function showSettings(): void {
           data,
           getQueue(),
           {
-            voice: getVoice(),
             beeps: getBeeps(),
             restSeconds: getRestOverride(),
             getReadySeconds: getGetReady(),
@@ -563,6 +563,7 @@ function showSettings(): void {
     onChangeCode: () => {
       clearPhone();
       forgetNotes();
+      forgetMissing();
       void idbClearAll();
       code = '';
       chosenId = null;

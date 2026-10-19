@@ -61,41 +61,19 @@ test('a reload keeps the move she is on', async ({ page }) => {
   await expect(page.locator('#progress-line')).toHaveText('Move 3 of 3');
 });
 
-test('voice is OFF on first open: nothing speaks, and the toggle shows it off', async ({
-  page,
-}) => {
+test('no automatic voice: no toggle, and the browser is never asked to speak', async ({ page }) => {
   await openUnlocked(page);
   await startWorkout(page);
-  await expect(page.locator('#voice-btn')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#voice-btn')).toHaveCount(0);
   await page.locator('#done-btn').click();
   await page.locator('#done-btn').click();
-  const spoken = await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
-  expect(spoken).toEqual([]);
+  const calls = await page.evaluate(() => {
+    const w = window as unknown as { __spoken: string[]; __cancels: number };
+    return { spoken: w.__spoken, cancels: w.__cancels };
+  });
+  expect(calls.spoken).toEqual([]);
+  expect(calls.cancels).toBe(0);
   expect(await page.evaluate(() => localStorage.getItem('aw.voice'))).toBeNull();
-});
-
-test('turning voice on reads each move after that, and the choice is remembered', async ({
-  page,
-}) => {
-  await openUnlocked(page);
-  await startWorkout(page);
-  const toggle = page.locator('#voice-btn');
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('#done-btn').click();
-  const spoken = await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
-  expect(spoken).toEqual(['Move two. Hold steady']);
-  expect(await page.evaluate(() => localStorage.getItem('aw.voice'))).toBe('on');
-  await page.reload();
-  await expect(page.locator('#voice-btn')).toHaveAttribute('aria-pressed', 'true');
-  // turning it off again stops it and is remembered too
-  await page.locator('#voice-btn').click();
-  await expect(page.locator('#voice-btn')).toHaveAttribute('aria-pressed', 'false');
-  await page.locator('#done-btn').click();
-  const after = await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
-  expect(after).toEqual([]); // (a reload starts the page's own list afresh)
-  expect(await page.evaluate(() => localStorage.getItem('aw.voice'))).toBe('off');
 });
 
 test('the screen is kept awake while the workout runs', async ({ page }) => {

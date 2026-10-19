@@ -1,4 +1,4 @@
-// Settings: voice, beeps, rest, get-ready, export, about, and "use a different code".
+// Settings: beeps, rest, get-ready, export, about, and "use a different code".
 // Everything is remembered on the phone.
 import { COPY } from '../copy';
 import { $, esc } from '../dom';
@@ -6,13 +6,10 @@ import {
   getBeeps,
   getGetReady,
   getRestOverride,
-  getVoice,
   setBeeps,
   setGetReady,
   setRestOverride,
-  setVoice,
 } from '../storage';
-import { stopSpeaking } from '../device';
 import type { ListedNote } from '../notes';
 import { notesListHtml } from './noteslist';
 
@@ -50,12 +47,6 @@ export function renderSettings(root: HTMLElement, opts: SettingsOptions): void {
       <div class="runbar"><button type="button" class="back-link" id="settings-back">‹ Home</button></div>
       <h1>${esc(COPY.settingsTitle)}</h1>
       <div class="set-row">
-        <span>${esc(COPY.voice)}</span>
-        <button type="button" class="chip chip-inline" id="set-voice" aria-pressed="${getVoice()}">${
-          getVoice() ? 'On' : 'Off'
-        }</button>
-      </div>
-      <div class="set-row">
         <span>${esc(COPY.beeps)}</span>
         <button type="button" class="chip chip-inline" id="set-beeps" aria-pressed="${getBeeps()}">${
           getBeeps() ? 'On' : 'Off'
@@ -86,13 +77,6 @@ export function renderSettings(root: HTMLElement, opts: SettingsOptions): void {
     </section>`;
 
   $(root, '#settings-back').addEventListener('click', opts.onBack);
-  const voice = $<HTMLButtonElement>(root, '#set-voice');
-  voice.addEventListener('click', () => {
-    setVoice(!getVoice());
-    voice.setAttribute('aria-pressed', String(getVoice()));
-    voice.textContent = getVoice() ? 'On' : 'Off';
-    if (!getVoice()) stopSpeaking();
-  });
   const beeps = $<HTMLButtonElement>(root, '#set-beeps');
   beeps.addEventListener('click', () => {
     setBeeps(!getBeeps());

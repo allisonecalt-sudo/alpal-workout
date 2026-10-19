@@ -46,6 +46,7 @@ function parseMove(raw: unknown, allowOptions = true): Move | null {
   else move.seconds = seconds as number;
   if (raw.new === true) move.new = true;
   if (raw.stepped === true) move.stepped = true;
+  if (raw.audio === true) move.audio = true;
   if (typeof raw.video === 'string' && raw.video !== '') move.video = raw.video;
   if (typeof raw.why === 'string' && raw.why !== '') move.why = raw.why;
   const tips = strings(raw.tips);
@@ -169,6 +170,9 @@ export function parseProgram(raw: unknown): Program | null {
   const safety = strings(data.safety);
   if (safety) program.safety = safety;
   if (typeof data.painRule === 'string' && data.painRule !== '') program.painRule = data.painRule;
+  if (typeof data.audioVersion === 'string' || typeof data.audioVersion === 'number') {
+    program.audioVersion = String(data.audioVersion);
+  }
   return program;
 }
 

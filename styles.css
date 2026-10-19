@@ -1426,3 +1426,57 @@ button.week-dots .dots {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+/* Watch how and Hear how: two pills side by side, then the inline player */
+.pill-row {
+  display: flex;
+  gap: 8px;
+}
+
+.pill-row .pill {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  padding-left: 8px;
+  padding-right: 8px;
+  overflow-wrap: anywhere;
+}
+
+.audio-holder:empty {
+  display: none;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 8px;
+}
+
+.player-btn {
+  width: 52px;
+  flex: none;
+  padding: 0;
+}
+
+.player-bar {
+  flex: 1 1 6em;
+  min-width: 0;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--soft);
+  overflow: hidden;
+}
+
+.player-fill {
+  height: 100%;
+  width: 0;
+  background: var(--dot);
+}
+
+.player-time {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

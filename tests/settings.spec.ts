@@ -53,23 +53,14 @@ test('About shows the version and the build time', async ({ page }) => {
   );
 });
 
-test('Voice: off at first, on when turned on, remembered, and it reads the moves', async ({
+test('Settings has no Voice row any more (the explanation is a button on each move)', async ({
   page,
 }) => {
   await openUnlocked(page);
   await openSettings(page);
-  await expect(page.locator('#set-voice')).toHaveAttribute('aria-pressed', 'false');
-  await page.locator('#set-voice').click();
-  await expect(page.locator('#set-voice')).toHaveText('On');
-  await page.reload();
-  await openSettings(page);
-  await expect(page.locator('#set-voice')).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: '‹ Home' }).click();
-  await startWorkout(page);
-  const spoken = await page.evaluate(() => (window as unknown as Win).__spoken);
-  expect(spoken).toEqual(['Move one. Line one']);
-  // and the voice button on the workout screen agrees
-  await expect(page.locator('#voice-btn')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#set-voice')).toHaveCount(0);
+  await expect(page.getByText('Voice', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#set-beeps')).toBeVisible();
 });
 
 test('Beeps: on at first; off means a hold makes no sound; remembered', async ({ page, net }) => {
@@ -184,7 +175,7 @@ test('Export downloads one JSON file named with the date, holding the sessions',
   expect(body.app_version).toBe(version);
   expect(body.sessions).toHaveLength(1);
   expect(body.sessions[0]).toMatchObject({ workout: 'A', check_0_10: 1 });
-  expect(body.settings).toMatchObject({ voice: false, beeps: true, getReadySeconds: 3 });
+  expect(body.settings).toMatchObject({ beeps: true, getReadySeconds: 3 });
   expect(body.not_sent_yet).toEqual([]);
 });
 

@@ -1,5 +1,6 @@
 // 1b. Home: greeting, this week's dots, Up next (with the other workouts as chips), the
 // questions card, the quiet line, past weeks. Tapping a move opens a read-only sheet.
+import { stopAudio } from '../audio';
 import { formatDayClock } from '../clock';
 import { COPY } from '../copy';
 import { $, esc } from '../dom';
@@ -112,6 +113,7 @@ function openSheet(root: HTMLElement, move: Move): void {
   root.appendChild(sheet);
   wireMoveInfo(sheet, move);
   const close = (): void => {
+    stopAudio();
     sheet.remove();
     document.removeEventListener('keydown', onKey);
   };
