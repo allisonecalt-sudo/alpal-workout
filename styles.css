@@ -54,8 +54,8 @@ body {
 
 body {
   min-height: 100vh;
-  padding: calc(var(--safe-top) + 8px) max(16px, env(safe-area-inset-right))
-    calc(var(--safe-bottom) + 24px) max(16px, env(safe-area-inset-left));
+  padding: 0 max(16px, env(safe-area-inset-right)) calc(var(--safe-bottom) + 24px)
+    max(16px, env(safe-area-inset-left));
   max-width: 520px;
   margin: 0 auto;
 }
@@ -1252,9 +1252,23 @@ button.week-dots .dots {
 }
 
 /* Header: the note button replaces Tell Allison. It stays above Paused and the Exit sheet. */
+/* The header stays at the top while the page scrolls, so the note button is always there.
+   (The body must not clip sideways itself, or sticky would stick to the body, not the screen.) */
+body {
+  overflow-x: visible;
+}
+
+html {
+  scroll-padding-top: calc(var(--safe-top) + 64px);
+}
+
 .top {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 55;
+  padding-top: calc(var(--safe-top) + 8px);
+  padding-bottom: 4px;
+  background: var(--bg);
 }
 
 .app-version {
