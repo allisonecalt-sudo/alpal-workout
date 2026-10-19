@@ -80,7 +80,10 @@ test('Yes, save it: After with the times prefilled, marked stopped early, and it
     () => JSON.parse(localStorage.getItem('aw.progress') as string).endedAt as number
   );
   expect(Date.now() - lastActive).toBeGreaterThan(3 * HOURS);
-  await expect(page.locator('#time-end')).toHaveText(/^Finished \d{1,2}:\d{2} ✓$/);
+  // the guessed finish is NOT confirmed: Right and Fix are offered
+  await expect(page.locator('#time-end')).toHaveText(/^Finished · \d{1,2}:\d{2}\. Right\?$/);
+  await expect(page.locator('#time-end-ok')).toBeVisible();
+  await expect(page.locator('#time-end-fix')).toBeVisible();
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.locator('#greeting')).toBeVisible();
   const s = net.saves[0].p_session as {
@@ -279,3 +282,21 @@ for (const width of [320, 390, 402, 430]) {
     }
   });
 }
+
+test('the guessed finish is pinned: it does not follow the clock, even after minutes pass or a reload', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  await page.clock.install({ time: new Date() });
+  await openUnlocked(page);
+  await leaveOneOpen(page);
+  await page.getByRole('button', { name: 'Yes, save it' }).click();
+  const line = page.locator('#time-end');
+  await expect(line).toHaveText(/^Finished · \d{1,2}:\d{2}\. Right\?$/);
+  const first = await line.textContent();
+  await page.clock.fastForward(6 * 60_000);
+  await expect(line).toHaveText(first as string);
+  await page.reload();
+  await expect(page.locator('#time-end')).toHaveText(first as string);
+});

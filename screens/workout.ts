@@ -449,7 +449,9 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     const timed = move.seconds !== undefined;
     if (timed) {
       if (!progress.hold) progress.hold = newHold(move.seconds ?? 0, getGetReady());
-      else if (freezeHold && progress.pausedAt === null) progress.hold = afterReload(progress.hold);
+      else if (freezeHold && progress.pausedAt === null) {
+        progress.hold = afterReload(progress.hold, now());
+      }
       // an option's timed moves go on by themselves, with their get-ready
       if (step.auto && speakIt && progress.hold.phase === 'ready' && progress.pausedAt === null) {
         progress.hold = startHold(progress.hold, now());

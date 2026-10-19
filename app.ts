@@ -475,7 +475,6 @@ function saveLeftOpen(progress: Progress): void {
   if (progress.stage !== 'after') {
     endProgress(progress, progress.lastActiveAt);
     progress.endedAt = progress.lastActiveAt;
-    progress.after.endTouched = true; // prefilled from when she was last active; Fix is one tap away
   }
   setProgress(progress);
   showStage(progress, true);

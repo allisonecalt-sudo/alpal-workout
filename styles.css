@@ -175,6 +175,7 @@ p {
 }
 
 input[type='text'],
+input[type='time'],
 textarea {
   width: 100%;
   font: inherit;
@@ -185,6 +186,12 @@ textarea {
   background: #fff;
   color: #3a2e1f;
   margin: 8px 0;
+}
+
+input[type='time'] {
+  min-height: 48px;
+  min-width: 9em;
+  width: auto;
 }
 
 input[type='text'] {

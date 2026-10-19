@@ -41,8 +41,10 @@ export function renderAfter(root: HTMLElement, opts: AfterOptions): () => void {
   const steps = buildSteps(workout, progress.before.lite, progress.choices);
   const rounds = effectiveRounds(workout, progress.before.lite);
   const doneRounds = roundsCompleted(steps, progress.statuses);
+  const hurt = progress.statuses.filter((s) => s === 'hurt').length;
   const skipped =
     progress.statuses.filter((s) => s === 'skipped').length +
+    hurt +
     (progress.cooldownStatus === 'skipped' ? workout.cooldown.length : 0);
 
   const title = stopped ? `Stopped early · ${workout.name}` : `Nice. ${workout.name} done.`;
@@ -57,7 +59,7 @@ export function renderAfter(root: HTMLElement, opts: AfterOptions): () => void {
       <p id="after-summary">${esc(summary)}</p>
       ${
         skipped > 0
-          ? `<p class="quiet" id="after-skipped">${skipped} move${skipped === 1 ? '' : 's'} skipped</p>`
+          ? `<p class="quiet" id="after-skipped">${skipped} move${skipped === 1 ? '' : 's'} skipped${hurt > 0 ? ` (${hurt} because it hurt)` : ''}</p>`
           : ''
       }
       <div id="after-time"></div>
@@ -133,6 +135,7 @@ export function renderAfter(root: HTMLElement, opts: AfterOptions): () => void {
     verb: 'Finished',
     at: d.endAt,
     touched: d.endTouched,
+    follow: false, // an unconfirmed finish is fixed at the moment After first appeared
     onChange: (at, touched) => {
       d.endAt = at;
       d.endTouched = touched;

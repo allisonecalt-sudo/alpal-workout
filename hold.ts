@@ -101,13 +101,15 @@ export function redoHold(h: HoldState): HoldState {
 }
 
 /**
- * After a reload: a get-ready count starts over; a hold that was running is frozen at the last
- * number shown (time while the page was closed never counts, and a second reload counts it once).
+ * After a reload: a get-ready count starts over. A hold that was running counts what the timer
+ * WOULD have shown, from its start up to the first moment the page is back (capped at the hold
+ * length). From then on it is frozen: idle time never counts, and a second reload adds nothing.
  */
-export function afterReload(h: HoldState): HoldState {
+export function afterReload(h: HoldState, now: number): HoldState {
   if (h.phase === 'pre') return redoHold(h);
   if (h.phase === 'hold') {
-    return { ...h, phase: 'held', heldSec: h.shown, run: finishTimer(h.run) };
+    const held = heldSoFar(h, now);
+    return { ...h, phase: 'held', heldSec: held, shown: held, run: finishTimer(h.run) };
   }
   return h;
 }
