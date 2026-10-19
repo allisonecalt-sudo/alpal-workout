@@ -139,7 +139,10 @@ async function runningHold(page: import('@playwright/test').Page, net: Net): Pro
   await page.waitForTimeout(1500);
 }
 
-/** Pretend the hold started `seconds` earlier (the page was away that long). */
+/**
+ * Pretend the hold started `seconds` earlier (the page was away that long) and reload, in one
+ * step: nothing can save the page's own copy over the change in between.
+ */
 async function shiftHoldStart(
   page: import('@playwright/test').Page,
   seconds: number
@@ -148,7 +151,9 @@ async function shiftHoldStart(
     const p = JSON.parse(localStorage.getItem('aw.progress') as string);
     p.hold.run.startedAt -= ms;
     localStorage.setItem('aw.progress', JSON.stringify(p));
+    location.reload();
   }, seconds * 1000);
+  await page.waitForLoadState('load');
 }
 
 test('a reload mid-hold counts what the timer would have shown: held 1.5 s, gone 8 s, about 9 to 11 s', async ({
@@ -157,7 +162,6 @@ test('a reload mid-hold counts what the timer would have shown: held 1.5 s, gone
 }) => {
   await runningHold(page, net);
   await shiftHoldStart(page, 8);
-  await page.reload();
   const held = page.locator('#held');
   await expect(held).toHaveText(/^✓ held (9|10|11|12) s$/);
   const first = await held.textContent();
@@ -174,7 +178,6 @@ test('a reload mid-hold counts what the timer would have shown: held 1.5 s, gone
 test('the count after a reload is capped at the hold length', async ({ page, net }) => {
   await runningHold(page, net);
   await shiftHoldStart(page, 600);
-  await page.reload();
   await expect(page.locator('#held')).toHaveText('✓ held 30 s');
 });
 
@@ -184,7 +187,6 @@ test('after the first moment back, idle time never counts, and two reloads add n
 }) => {
   await runningHold(page, net);
   await shiftHoldStart(page, 5);
-  await page.reload();
   const held = page.locator('#held');
   await expect(held).toHaveText(/^✓ held \d+ s$/);
   const first = await held.textContent();
