@@ -242,9 +242,10 @@ test('no tip while a sheet is open or a recording runs; it comes back after', as
   await expect(page.locator('#tip')).toHaveCount(0);
   await page.locator('#rec-start').click();
   await expect(page.locator('#rec-time')).toBeVisible();
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(650);
   await expect(page.locator('#tip')).toHaveCount(0);
-  await page.locator('#note-close').click();
+  await page.locator('#note-close').click(); // stops, asks
+  await page.locator('#confirm-discard').click();
   await expect(tip(page)).toBeVisible();
 });
 

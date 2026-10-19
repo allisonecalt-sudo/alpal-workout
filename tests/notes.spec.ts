@@ -237,10 +237,11 @@ test('record, stop, play, send: the exact request, with the code in the body onl
   await expect(page.locator('#rec-time')).toBeVisible();
   await expect(page.locator('.rec-dot')).toBeVisible();
   await expect(page.locator('#rec-stop')).toHaveText('■ Stop');
-  // the backdrop does not throw a recording away
+  // the backdrop does not throw a recording away: it stops and asks
+  await page.waitForTimeout(650);
   await page.mouse.click(5, 5);
-  await expect(page.locator('#note-sheet')).toBeVisible();
-  await stopRecording(page);
+  await expect(page.locator('#confirm-title')).toBeVisible();
+  await page.locator('#confirm-keep').click();
   await expect(page.locator('#rec-play')).toContainText('▶ Play');
   await expect(page.locator('#rec-again')).toBeVisible();
   await page.locator('#rec-play').click();
@@ -313,6 +314,55 @@ test('closing the sheet in the middle of a recording lets the microphone go', as
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
   await expect(page.locator('#rec-time')).toBeVisible();
+  await page.waitForTimeout(650);
+  await page.locator('#note-close').click();
+  // it did not vanish: the recording was stopped, the microphone let go, and she is asked
+  await expect(page.locator('#confirm-title')).toBeVisible();
+  const mic = await page.evaluate(
+    () => (window as unknown as { __mic: { opened: number; stopped: number } }).__mic
+  );
+  expect(mic.stopped).toBe(mic.opened);
+  await page.locator('#confirm-discard').click();
+  await expect(page.locator('#note-sheet')).toHaveCount(0);
+  expect(net.messages).toHaveLength(0);
+});
+
+test('Close during a recording: Keep editing returns to the review, Send sends it', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  await openUnlocked(page);
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await expect(page.locator('#rec-time')).toBeVisible();
+  await page.waitForTimeout(650);
+  await page.locator('#note-close').click();
+  await expect(page.locator('#confirm-title')).toHaveText('Send this note?');
+  await page.locator('#confirm-keep').click();
+  await expect(page.locator('#rec-play')).toBeVisible(); // the review state, recording intact
+  await expect(page.locator('#note-send')).toBeVisible();
+  expect(net.messages).toHaveLength(0);
+  await page.locator('#note-close').click();
+  await page.locator('#confirm-send').click();
+  await expect(page.locator('#note-done')).toBeVisible();
+  expect(net.messages).toHaveLength(1);
+  expect(net.messages[0].body.p_msg.kind).toBe('voice');
+});
+
+test('Close the instant a recording starts (under half a second): nothing to keep, it just closes', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  await openUnlocked(page);
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await expect(page.locator('#rec-time')).toBeVisible();
+  await page.evaluate(() => {
+    const real = Date.now.bind(Date);
+    Date.now = () => real() - 5000;
+  });
   await page.locator('#note-close').click();
   await expect(page.locator('#note-sheet')).toHaveCount(0);
   const mic = await page.evaluate(
@@ -732,6 +782,7 @@ test('the beeps are back after a recording ends: stopped, closed, or closed whil
   page,
   net,
 }) => {
+  test.setTimeout(120_000); // a long walk through the sheet, then a real hold countdown
   net.guest = makeGuest({ program: makeHoldProgram(), sessions: [] });
   await openUnlocked(page);
   // record, stop, close; then close in the middle of a recording; then close while asking
@@ -744,7 +795,9 @@ test('the beeps are back after a recording ends: stopped, closed, or closed whil
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
   await expect(page.locator('#rec-time')).toBeVisible();
+  await page.waitForTimeout(650);
   await page.locator('#note-close').click();
+  await page.locator('#confirm-discard').click();
   await page.evaluate(() => {
     (window as unknown as { __mic: Mic }).__mic.delay = 300;
   });

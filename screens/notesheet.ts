@@ -98,12 +98,8 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
   // The backdrop only closes the sheet when nothing would be lost.
   sheet.addEventListener('click', (e) => {
     if (e.target !== sheet) return;
-    if (
-      view === 'recording' ||
-      view === 'review' ||
-      view === 'confirm' ||
-      (view === 'write' && draft.trim() !== '')
-    ) {
+    if (view === 'recording') return requestClose(); // a tap outside stops and asks, never discards
+    if (view === 'review' || view === 'confirm' || (view === 'write' && draft.trim() !== '')) {
       return;
     }
     closeNoteSheet();
@@ -116,6 +112,16 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
 
   /** Close: a finished recording or a written note is never dropped without asking. */
   const requestClose = (): void => {
+    if (view === 'recording') {
+      // still recording: stop (the microphone is let go), then ask about what was recorded
+      void stopRecording(false).then(() => {
+        if (view === 'review') {
+          before = 'review';
+          go('confirm');
+        } else closeNoteSheet(); // nothing worth keeping (too short, or no microphone)
+      });
+      return;
+    }
     if (view === 'review' || (view === 'write' && draft.trim() !== '')) {
       before = view;
       if (recordingUrl !== null) stopAudio();
