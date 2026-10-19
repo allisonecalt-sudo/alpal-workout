@@ -68,10 +68,10 @@ test('paging with ‹ › goes week by week and stops at the ends', async ({ pag
   await expect(page.locator('.session-row')).toHaveCount(3);
   await expect(page.locator('#review-status')).toHaveCount(0); // a finished week: just its numbers
   await expect(page.getByRole('button', { name: 'Previous week' })).toBeDisabled();
+  // › stops at the active week: a week that has not started is never shown
   await page.getByRole('button', { name: 'Next week' }).click();
-  await page.getByRole('button', { name: 'Next week' }).click();
-  await expect(page.locator('#review-title')).toHaveText('Week 3 · 0 of 3');
-  await expect(page.locator('#review-status')).toHaveText('Not started yet');
+  await expect(page.locator('#review-title')).toHaveText('Week 2 · 1 of 3');
+  await expect(page.locator('#review-status')).toHaveText('Week still open');
   await expect(page.getByRole('button', { name: 'Next week' })).toBeDisabled();
 });
 
@@ -181,3 +181,43 @@ for (const width of [320, 390, 402, 430]) {
     }
   });
 }
+
+test('a future week is never shown, not even as "0 of 3"', async ({ page, net }) => {
+  setup(net, [sess(0, 1), sess(1, 2)]);
+  await openUnlocked(page);
+  await openReview(page);
+  await expect(page.locator('#review-title')).toHaveText('Week 2 · 1 of 3');
+  await expect(page.getByRole('button', { name: 'Next week' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Previous week' }).click();
+  await page.getByRole('button', { name: 'Next week' }).click();
+  await expect(page.locator('#review-title')).toHaveText('Week 2 · 1 of 3');
+  await expect(page.locator('.review')).not.toContainText('Week 3');
+  await expect(page.locator('.review')).not.toContainText('Not started yet');
+});
+
+test('on a past week the usual line says "that week", on the open week "this week"', async ({
+  page,
+  net,
+}) => {
+  const weeks = [1, 2, 3, 4, 5].map((w) => ({
+    week: w,
+    label: `Week ${w}`,
+    active: w === 5,
+    workouts: WORKOUTS,
+  }));
+  const sessions: FakeSession[] = [];
+  let k = 0;
+  for (const w of [1, 2, 3, 4]) for (let i = 0; i < 3; i++) sessions.push(sess(k++, w));
+  sessions.push(sess(k++, 5), sess(k++, 5));
+  net.guest = makeGuest({
+    program: makeRoundsProgram({ week: 5, checkLabel: 'Test check' }),
+    sessions,
+    weeks,
+  });
+  await openUnlocked(page);
+  await openReview(page);
+  await expect(page.locator('#review-usual')).toHaveText('Your usual: 3 a week · this week: 2');
+  await page.getByRole('button', { name: 'Previous week' }).click();
+  await expect(page.locator('#review-title')).toHaveText('Week 4 · 3 of 3');
+  await expect(page.locator('#review-usual')).toHaveText('Your usual: 3 a week · that week: 3');
+});
