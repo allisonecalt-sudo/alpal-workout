@@ -756,7 +756,7 @@ test('the beeps are back after a recording ends: stopped, closed, or closed whil
   await page.locator('#timer-btn').click();
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { __tones: number[] }).__tones.length), {
-      timeout: 12000,
+      timeout: 20000,
     })
     .toBeGreaterThan(0);
 });

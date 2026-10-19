@@ -12,6 +12,15 @@ export function startAudio(url: string): HTMLAudioElement {
   return el;
 }
 
+/** Half a second of nothing: played inside a tap so the phone lets this element play later. */
+export const SILENT_WAV =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
+/** Is this still the sound the app is playing (not stopped or replaced meanwhile)? */
+export function isCurrentAudio(el: HTMLAudioElement): boolean {
+  return current === el;
+}
+
 /** Stop and let go of the current sound (leaving a move, closing a sheet). */
 export function stopAudio(): void {
   const el = current;
@@ -24,6 +33,11 @@ export function stopAudio(): void {
   } catch {
     /* already gone */
   }
+}
+
+/** Stop this sound, but only if it is still the one playing. */
+export function stopAudioIf(el: HTMLAudioElement): void {
+  if (current === el) stopAudio();
 }
 
 /** Pause only (starting a recording): it can be played again. */

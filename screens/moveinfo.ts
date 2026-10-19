@@ -1,7 +1,14 @@
 // The how-to lines, the optional video, the optional spoken explanation ("Hear how") and the
 // "More about this move" block. Shared by the workout screen, the read-only move sheet on Home
 // and the cool-down rows.
-import { pauseAudio, startAudio, stopAudio } from '../audio';
+import {
+  SILENT_WAV,
+  isCurrentAudio,
+  pauseAudio,
+  startAudio,
+  stopAudio,
+  stopAudioIf,
+} from '../audio';
 import { COPY } from '../copy';
 import { esc } from '../dom';
 import { explainSource, isMissing, loadExplanation } from '../explain';
@@ -102,15 +109,24 @@ function wireHear(root: HTMLElement, move: Move, suffix: string): void {
     if (holder.childElementCount > 0) return close(); // open (or showing a message): hide it
     loading = true;
     btn.textContent = COPY.hearLoading;
+    // A phone only lets sound start inside the tap itself. So the sound element is made and
+    // played right now (silently); the real sound is put into it when it arrives.
+    const el = startAudio(SILENT_WAV);
+    void el.play().catch(() => undefined);
     void loadExplanation(explainSource().code, move.name, explainSource().version).then((res) => {
       loading = false;
-      if (!btn.isConnected) return; // she moved on while it loaded
+      if (!btn.isConnected || !isCurrentAudio(el)) {
+        stopAudioIf(el); // she moved on (or paused the workout) while it loaded
+        return;
+      }
       btn.textContent = COPY.hearHow;
       if (res.kind === 'missing') {
+        stopAudioIf(el);
         btn.remove();
         return;
       }
       if (res.kind === 'offline') {
+        stopAudioIf(el);
         holder.innerHTML = `<p class="quiet" id="audio-msg">${esc(COPY.hearOffline)}</p>`;
         btn.setAttribute('aria-expanded', 'true');
         return;
@@ -123,7 +139,7 @@ function wireHear(root: HTMLElement, move: Move, suffix: string): void {
       const bar = holder.querySelector<HTMLElement>('.player-bar');
       const time = holder.querySelector<HTMLElement>('.player-time');
       closeVideos(); // one sound at a time
-      const el = startAudio(res.url);
+      el.src = res.url;
       const paint = (): void => {
         const total = Number.isFinite(el.duration) ? el.duration : 0;
         const at = el.currentTime;

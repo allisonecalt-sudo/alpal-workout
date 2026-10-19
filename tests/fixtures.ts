@@ -212,6 +212,8 @@ export class Net {
   audioCalls: { url: string; body: { p_code: string; p_name: string } }[] = [];
   /** What the store says about a move's audio, by move name (default: it has some). */
   audioMode: Record<string, 'ok' | 'missing' | 'locked'> = {};
+  /** Make a spoken-explanation request answer slowly (milliseconds). */
+  audioDelayMs = 0;
 }
 
 async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<void>) {
@@ -237,6 +239,7 @@ async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<v
   }
   if (url.pathname.endsWith('/rest/v1/rpc/guest_get_audio')) {
     net.audioCalls.push({ url: req.url(), body });
+    if (net.audioDelayMs) await new Promise((r) => setTimeout(r, net.audioDelayMs));
     const mode = net.audioMode[body.p_name] ?? 'ok';
     if (mode === 'missing') return fulfill({ missing: true });
     if (mode === 'locked') return fulfill({ locked: true });
@@ -402,7 +405,12 @@ export async function installDevices(page: Page): Promise<void> {
     }
     w.MediaRecorder = FakeRecorder;
     // audio playback: the headless browsers cannot decode our fake bytes, so play/pause are faked
-    const audio = { plays: [] as string[], el: null as HTMLMediaElement | null, pauses: 0 };
+    const audio = {
+      plays: [] as string[],
+      el: null as HTMLMediaElement | null,
+      pauses: 0,
+      rejectReal: false,
+    };
     w.__audio = audio;
     const proto = HTMLMediaElement.prototype;
     const define = (name: string, desc: PropertyDescriptor) =>
@@ -423,9 +431,13 @@ export async function installDevices(page: Page): Promise<void> {
     });
     define('play', {
       value: function (this: HTMLMediaElement & { __on?: boolean }) {
+        if (audio.rejectReal && this.src.startsWith('blob:')) {
+          audio.rejectReal = false; // a phone that wants one more tap
+          return Promise.reject(new DOMException('not allowed', 'NotAllowedError'));
+        }
         this.__on = true;
         audio.el = this;
-        audio.plays.push(this.currentSrc || this.src);
+        audio.plays.push(this.src);
         this.dispatchEvent(new Event('loadedmetadata'));
         this.dispatchEvent(new Event('play'));
         return Promise.resolve();
@@ -439,6 +451,19 @@ export async function installDevices(page: Page): Promise<void> {
         this.dispatchEvent(new Event('pause'));
       },
     });
+    // like a real element, a new src stops what was playing
+    const srcDesc = Object.getOwnPropertyDescriptor(proto, 'src');
+    if (srcDesc?.get && srcDesc.set) {
+      define('src', {
+        get: function (this: HTMLMediaElement) {
+          return (srcDesc.get as () => string).call(this);
+        },
+        set: function (this: HTMLMediaElement & { __on?: boolean }, v: string) {
+          this.__on = false;
+          (srcDesc.set as (v: string) => void).call(this, v);
+        },
+      });
+    }
     define('load', { value: function () {} });
     w.__advance = (sec: number) => {
       const el = audio.el as (HTMLMediaElement & { __t?: number }) | null;

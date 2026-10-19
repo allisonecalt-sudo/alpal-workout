@@ -34,8 +34,11 @@ function setup(net: Net, version?: string): void {
   net.guest = makeGuest({ program, sessions: [] });
 }
 
+// plays of the real explanation (the silent unlock played inside the tap is not counted)
 const hearPlays = (page: Page) =>
-  page.evaluate(() => (window as unknown as Win).__audio.plays.length);
+  page.evaluate(
+    () => (window as unknown as Win).__audio.plays.filter((s) => !s.startsWith('data:')).length
+  );
 
 test('Hear how and Watch how are two pills in the same row, right above More about this move', async ({
   page,
@@ -262,3 +265,73 @@ for (const width of [320, 390, 402, 430]) {
     expect((row?.x ?? 0) + (row?.width ?? 0)).toBeLessThanOrEqual(width);
   });
 }
+
+test('playback starts inside the tap: a silent unlock plays at once, the real sound follows', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  net.audioDelayMs = 600;
+  await openUnlocked(page);
+  await startWorkout(page);
+  await page.locator('#hear-btn').click();
+  // the fetch has not come back, but the element is already made and playing (silently)
+  const early = await page.evaluate(() => (window as unknown as Win).__audio.plays);
+  expect(early).toHaveLength(1);
+  expect(early[0]).toMatch(/^data:audio\/wav/);
+  await expect(page.locator('.player')).toHaveCount(0);
+  await expect(page.locator('.player')).toBeVisible();
+  const plays = await page.evaluate(() => (window as unknown as Win).__audio.plays);
+  expect(plays).toHaveLength(2);
+  expect(plays[1]).toMatch(/^blob:/);
+  await expect(page.locator('.player-btn')).toHaveAttribute('aria-label', 'Pause');
+});
+
+test('a cached explanation also starts inside the tap', async ({ page, net }) => {
+  setup(net);
+  await openUnlocked(page);
+  await startWorkout(page);
+  await page.locator('#hear-btn').click();
+  await expect(page.locator('.player')).toBeVisible();
+  await page.locator('#hear-btn').click(); // hide
+  await page.evaluate(() => ((window as unknown as Win).__audio.plays.length = 0));
+  await page.locator('#hear-btn').click();
+  const early = await page.evaluate(() => (window as unknown as Win).__audio.plays);
+  expect(early.length).toBeGreaterThanOrEqual(1);
+  expect(early[0]).toMatch(/^data:audio\/wav/);
+  await expect(page.locator('.player')).toBeVisible();
+  expect(net.audioCalls).toHaveLength(1);
+});
+
+test('if the phone still refuses to play, the player waits ready to tap once, with no error text', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  await openUnlocked(page);
+  await startWorkout(page);
+  await page.evaluate(() => {
+    (window as unknown as { __audio: { rejectReal: boolean } }).__audio.rejectReal = true;
+  });
+  await page.locator('#hear-btn').click();
+  await expect(page.locator('.player')).toBeVisible();
+  await expect(page.locator('.player-btn')).toHaveAttribute('aria-label', 'Play');
+  await expect(page.locator('#audio-msg')).toHaveCount(0);
+  await expect(page.locator('.audio-holder')).not.toContainText(/error|couldn|can't/i);
+  await page.locator('.player-btn').click();
+  await expect(page.locator('.player-btn')).toHaveAttribute('aria-label', 'Pause');
+});
+
+test('pausing the workout while the explanation loads means it never starts', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  net.audioDelayMs = 500;
+  await openUnlocked(page);
+  await startWorkout(page);
+  await page.locator('#hear-btn').click();
+  await page.getByRole('button', { name: 'Pause workout' }).click();
+  await page.waitForTimeout(900);
+  expect(await hearPlays(page)).toBe(0);
+});
