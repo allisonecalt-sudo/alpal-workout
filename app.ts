@@ -305,7 +305,7 @@ function showStage(progress: Progress, resumed: boolean): void {
       program,
       workout,
       progress,
-      speakFirst: !resumed && progress.idx === 0 && progress.statuses.length === 0,
+      freshStart: !resumed && progress.idx === 0 && progress.statuses.length === 0,
       resumed,
       onExit: (to) => afterRun(progress, to),
     });

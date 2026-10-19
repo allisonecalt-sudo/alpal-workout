@@ -52,8 +52,8 @@ export interface WorkoutOptions {
   program: Program;
   workout: Workout;
   progress: Progress;
-  /** Read the first move aloud now (true when she just tapped Start). */
-  speakFirst: boolean;
+  /** She just tapped Start: the first screen is new (an option's timed move starts by itself). */
+  freshStart: boolean;
   /** The page was just (re)loaded with this workout in the middle of a hold. */
   resumed: boolean;
   /** Called when the run is over (after progress has been updated and saved). */
@@ -392,7 +392,8 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
   };
 
   /** The move card for a step. */
-  const showStep = (speakIt: boolean): void => {
+  /** `fresh`: a screen she just arrived at (not a redraw of the same move). */
+  const showStep = (fresh: boolean): void => {
     const step = steps[progress.idx];
     if (isChoiceStep(step)) return showChoice(step);
     const move = step.move;
@@ -403,7 +404,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
         progress.hold = afterReload(progress.hold, now());
       }
       // an option's timed moves go on by themselves, with their get-ready
-      if (step.auto && speakIt && progress.hold.phase === 'ready' && progress.pausedAt === null) {
+      if (step.auto && fresh && progress.hold.phase === 'ready' && progress.pausedAt === null) {
         progress.hold = startHold(progress.hold, now());
       }
       freezeHold = false;
@@ -546,7 +547,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     }
   };
 
-  const show = (speakIt: boolean): void => {
+  const show = (fresh: boolean): void => {
     stopAudio(); // a new screen is a new move: its explanation does not carry over
     window.clearInterval(tickHandle);
     tickHandle = undefined;
@@ -561,9 +562,9 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     else if (progress.idx >= steps.length) return afterLast();
     else if (progress.rest) showRest();
     else if (progress.between) showBetween();
-    else showStep(speakIt);
+    else showStep(fresh);
     if (progress.pausedAt !== null) showPausedOverlay();
   };
 
-  show(opts.speakFirst);
+  show(opts.freshStart);
 }
