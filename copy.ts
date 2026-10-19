@@ -102,5 +102,10 @@ export const COPY = {
   comingNext: 'Coming next week',
   sameMoves: 'Same moves as this week',
   pastWeeks: 'Past weeks',
+  walkRow: '🚶 Log a walk',
+  walkRunning: '🚶 A walk is running',
+  walkTitle: 'Log a walk',
+  walkedAlready: 'I already walked:',
+  pause: 'Pause',
   loading: 'Loading…',
 } as const;

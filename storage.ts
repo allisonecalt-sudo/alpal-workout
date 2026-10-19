@@ -2,6 +2,7 @@
 // localStorage can throw (private windows, blocked site data) and the app must still run.
 import { normaliseProgress, type Progress } from './progress';
 import type { QueueItem } from './types';
+import type { WalkState } from './walk';
 
 const K = {
   code: 'aw.code',
@@ -15,6 +16,7 @@ const K = {
   rest: 'aw.rest',
   ready: 'aw.ready',
   cardio: 'aw.cardio',
+  walk: 'aw.walk',
 } as const;
 
 function read(key: string): string | null {
@@ -79,6 +81,15 @@ export function setGetReady(seconds: number): void {
   write(K.ready, String(seconds));
 }
 
+/** A walk in progress (its timer), so a reload does not lose it. */
+export function getWalk(): WalkState | null {
+  const w = readJson<WalkState>(K.walk);
+  return w && typeof w.startedAt === 'number' ? w : null;
+}
+export function setWalk(w: WalkState | null): void {
+  write(K.walk, w === null ? null : JSON.stringify(w));
+}
+
 /** The cardio option she picked last time (its label). */
 export function getCardio(): string | null {
   return read(K.cardio);
@@ -94,6 +105,7 @@ export function clearPhone(): void {
   write(K.queue, null);
   write(K.cache, null);
   write(K.done, null);
+  write(K.walk, null);
 }
 
 /** Voice is OFF until she turns it on. Nothing ever speaks the first time. */
@@ -116,6 +128,8 @@ export function setProgress(p: Progress | null): void {
 export interface DoneToday {
   workoutId: string;
   at: number;
+  /** Moves done for the first time ever in that session. */
+  firsts?: string[];
 }
 export function getDoneToday(): DoneToday | null {
   const d = readJson<DoneToday>(K.done);

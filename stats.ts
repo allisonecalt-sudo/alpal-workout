@@ -1,7 +1,7 @@
 // The numbers behind the weekly review and the Progress page. Pure, so each rule is unit tested.
 // One number, one home: both screens read these functions, so a number is the same everywhere.
 import { isWalk } from './program';
-import type { Program, SessionSummary, WeekInfo } from './types';
+import type { Program, SessionMove, SessionSummary, WeekInfo } from './types';
 
 /** Workout sessions only: a walk never counts toward the week. */
 export function workoutsOnly(all: SessionSummary[]): SessionSummary[] {
@@ -193,4 +193,18 @@ export function nextChange(
     added: [...upcoming].filter((n) => !now.has(n)),
     removed: [...now].filter((n) => !upcoming.has(n)),
   };
+}
+
+/**
+ * The moves done for the first time ever: done in this session and never done in any earlier one
+ * (as far back as the history reaches), each name once, in the order they were done.
+ */
+export function firstsOf(moves: SessionMove[], earlier: SessionSummary[]): string[] {
+  const seen = new Set<string>();
+  for (const s of earlier) for (const m of s.moves) if (m.status === 'done') seen.add(m.name);
+  const out: string[] = [];
+  for (const m of moves) {
+    if (m.status === 'done' && !seen.has(m.name) && !out.includes(m.name)) out.push(m.name);
+  }
+  return out;
 }

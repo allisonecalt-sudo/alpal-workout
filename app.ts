@@ -15,6 +15,7 @@ import {
   clearPhone,
   getBeeps,
   getDoneToday,
+  getWalk,
   getGetReady,
   getRestOverride,
   getVoice,
@@ -37,8 +38,9 @@ import {
   guestUpdateNote,
   sendQueued,
 } from './store';
-import { sessionsThisWeek } from './program';
-import { weeksToShow } from './stats';
+import { sessionsThisWeek, walksThisWeek } from './program';
+import { firstsOf, weeksToShow } from './stats';
+import { walkPayload } from './walk';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
 import { isAnswer, isNoteEdit, isSession } from './types';
 import { APP_VERSION, BUILD_SHORT } from './version';
@@ -49,6 +51,7 @@ import { leaveCooldown, renderCooldown } from './screens/cooldown';
 import { renderHome } from './screens/home';
 import { renderCantOpen, renderLoading, renderNotLoaded } from './screens/notloaded';
 import { renderProgress } from './screens/progress';
+import { leaveWalk, renderWalk } from './screens/walk';
 import { renderQuestions } from './screens/questions';
 import { renderReview } from './screens/review';
 import { renderSessionDetail, renderSessionList, type ListedSession } from './screens/sessions';
@@ -168,6 +171,7 @@ function safetyOpen(week: number): boolean {
 
 function showHome(): void {
   leaveWorkout();
+  leaveWalk();
   closeSettingsSheets();
   setGear(true);
   releaseAwake();
@@ -183,7 +187,9 @@ function showHome(): void {
   const done = getDoneToday();
   const doneWorkout = done ? workoutOf(done.workoutId) : null;
   const doneCard =
-    done && doneWorkout && sameDay(done.at, Date.now()) ? { name: doneWorkout.name } : null;
+    done && doneWorkout && sameDay(done.at, Date.now())
+      ? { name: doneWorkout.name, firsts: done.firsts ?? [] }
+      : null;
   renderHome(root, {
     data,
     program,
@@ -205,6 +211,9 @@ function showHome(): void {
       if (left) showStage(left.progress, true);
     },
     doneToday: doneCard,
+    walks: walksThisWeek([...data.sessions, ...waitingSessions], program.week),
+    walkRunning: getWalk() !== null,
+    onWalk: showWalk,
     unsentSessions: waitingSessions.length,
     unsentAnswers: queuedAnswers().length,
     unsentNotes: getQueue().filter(isNoteEdit).length,
@@ -335,8 +344,22 @@ async function saveSession(progress: Progress): Promise<void> {
     return;
   }
   const session = buildPayload(progress, workout, progress.week, newClientId());
-  // 'sent' = the store took it; 'refused' = it answered ok:false; 'offline' = no answer.
-  // A "locked" reply (the throttle) is not a refusal: it waits in the queue and retries.
+  // moves done for the first time ever (as far back as the history goes), before this one is added
+  const firsts = firstsOf(
+    session.moves,
+    listedSessions().map((l) => l.record)
+  );
+  const outcome = await deliver(session);
+  if (outcome !== 'refused') setDoneToday({ workoutId: workout.id, at: Date.now(), firsts });
+  setProgress(null);
+  showHome();
+}
+
+/**
+ * Send a finished session: 'sent' = the store took it; 'refused' = it answered ok:false;
+ * 'offline' = no answer. A "locked" reply (the throttle) is not a refusal: it waits in the queue.
+ */
+async function deliver(session: SessionPayload): Promise<'sent' | 'refused' | 'offline'> {
   let outcome: 'sent' | 'refused' | 'offline' = 'offline';
   try {
     const res = await guestSaveSession(code, session);
@@ -352,9 +375,32 @@ async function saveSession(progress: Progress): Promise<void> {
   } else {
     notice = COPY.saveRefused;
   }
-  if (outcome !== 'refused') setDoneToday({ workoutId: workout.id, at: Date.now() });
-  setProgress(null);
-  showHome();
+  return outcome;
+}
+
+function showWalk(): void {
+  leaveWorkout();
+  setGear(true);
+  renderWalk(root, {
+    onBack: () => {
+      leaveWalk();
+      showHome();
+    },
+    onSave: async (seconds, endMs) => {
+      const program = programOf();
+      if (!program) return;
+      leaveWalk();
+      const payload = walkPayload(
+        newClientId(),
+        program.week,
+        endMs - seconds * 1000,
+        endMs,
+        seconds
+      );
+      await deliver(payload);
+      showHome();
+    },
+  });
 }
 
 /** Saved sessions plus the ones still waiting to be sent, newest first. */

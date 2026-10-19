@@ -36,7 +36,11 @@ export interface HomeOptions {
   onLeftOpenNo: () => void;
   onLeftOpenKeep: () => void;
   /** The workout she saved today (the card lasts until midnight). */
-  doneToday: { name: string } | null;
+  doneToday: { name: string; firsts: string[] } | null;
+  /** Walks this program week (they never count toward the workouts). */
+  walks: number;
+  walkRunning: boolean;
+  onWalk: () => void;
   unsentSessions: number;
   unsentAnswers: number;
   unsentNotes: number;
@@ -60,6 +64,14 @@ function unsentText(sessions: number, answers: number, notes: number): string {
   else if (answers > 0) what = answers === 1 ? '1 answer' : `${answers} answers`;
   else what = notes === 1 ? '1 note change' : `${notes} note changes`;
   return `${what} not sent yet — it'll send when you're online.`;
+}
+
+/** "Firsts: A, B, C and 2 more": moves done for the first time ever. */
+function firstsLine(firsts: string[]): string {
+  if (firsts.length === 0) return '';
+  const shown = firsts.slice(0, 5).map(esc).join(', ');
+  const more = firsts.length > 5 ? ` and ${firsts.length - 5} more` : '';
+  return `<span class="firsts" id="firsts">Firsts: ${shown}${more}</span>`;
 }
 
 function chip(w: Workout, done: Set<string>): string {
@@ -207,7 +219,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
        </div>`
     : '';
   const doneHtml = opts.doneToday
-    ? `<div class="card done-card" id="done-today">Done ✓ · ${esc(opts.doneToday.name)} · ${doneThisWeek} of ${program.sessionsPerWeek} this week</div>`
+    ? `<div class="card done-card" id="done-today">Done ✓ · ${esc(opts.doneToday.name)} · ${doneThisWeek} of ${program.sessionsPerWeek} this week${firstsLine(opts.doneToday.firsts)}</div>`
     : '';
   const greeting = data.name === '' ? 'Hi 👋' : `Hi ${esc(data.name)} 👋`;
 
@@ -224,6 +236,12 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
       ${doneHtml}
       ${card}
       ${questions}
+      <button type="button" class="door" id="walk-btn"><span>${esc(opts.walkRunning ? COPY.walkRunning : COPY.walkRow)}</span><span aria-hidden="true">›</span></button>
+      ${
+        opts.walks > 0
+          ? `<p class="quiet" id="walks-line">🚶 ${opts.walks} walk${opts.walks === 1 ? '' : 's'} this week</p>`
+          : ''
+      }
       ${unsentHtml}
       ${offlineHtml}
       <p class="quiet" id="quiet-line">${esc(COPY.quietLine)}</p>
@@ -251,6 +269,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
   });
   root.querySelector('#questions-btn')?.addEventListener('click', opts.onQuestions);
   root.querySelector('#door-sessions')?.addEventListener('click', opts.onSessions);
+  root.querySelector('#walk-btn')?.addEventListener('click', opts.onWalk);
   root.querySelector('#door-progress')?.addEventListener('click', opts.onProgress);
   root.querySelector('#week-btn')?.addEventListener('click', opts.onReview);
   root.querySelector('#left-open-yes')?.addEventListener('click', opts.onLeftOpenYes);

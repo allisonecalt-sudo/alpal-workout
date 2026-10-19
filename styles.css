@@ -1233,3 +1233,20 @@ button.week-dots .dots {
   font-weight: 600;
   margin: 8px 0 2px;
 }
+
+/* Walks and the Firsts line */
+.firsts {
+  display: block;
+  margin-top: 4px;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+#walk-btn {
+  margin-top: 12px;
+}
+
+.walk .timer {
+  margin: 8px 0;
+}
