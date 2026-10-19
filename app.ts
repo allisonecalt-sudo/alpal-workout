@@ -38,6 +38,7 @@ import {
   sendQueued,
 } from './store';
 import { sessionsThisWeek } from './program';
+import { weeksToShow } from './stats';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
 import { isAnswer, isNoteEdit, isSession } from './types';
 import { APP_VERSION, BUILD_SHORT } from './version';
@@ -47,7 +48,9 @@ import { renderBefore } from './screens/before';
 import { leaveCooldown, renderCooldown } from './screens/cooldown';
 import { renderHome } from './screens/home';
 import { renderCantOpen, renderLoading, renderNotLoaded } from './screens/notloaded';
+import { renderProgress } from './screens/progress';
 import { renderQuestions } from './screens/questions';
+import { renderReview } from './screens/review';
 import { renderSessionDetail, renderSessionList, type ListedSession } from './screens/sessions';
 import { closeSettingsSheets, renderSettings } from './screens/settings';
 import { renderUnlock, showUnlockError } from './screens/unlock';
@@ -213,6 +216,8 @@ function showHome(): void {
     },
     onQuestions: showQuestions,
     onSessions: () => showSessions(0),
+    onProgress: showProgress,
+    onReview: () => showReview(program.week),
   });
 }
 
@@ -384,18 +389,18 @@ function showSessions(scroll: number): void {
     onBack: showHome,
     onOpen: (item) => {
       listScroll = window.scrollY;
-      showSessionDetail(item);
+      showSessionDetail(item, () => showSessions(listScroll));
     },
   });
 }
 
-function showSessionDetail(item: ListedSession): void {
+function showSessionDetail(item: ListedSession, back: () => void): void {
   window.scrollTo(0, 0);
   renderSessionDetail(root, {
     item,
     program: programOf(),
     tellHref: tellHref(),
-    onBack: () => showSessions(listScroll),
+    onBack: back,
     onSaveNote: (note) => saveNote(item, note),
   });
 }
@@ -435,6 +440,42 @@ async function saveNote(item: ListedSession, note: string): Promise<'saved' | 'r
   } catch {
     return keep();
   }
+}
+
+function showReview(week: number): void {
+  leaveWorkout();
+  const program = programOf();
+  if (!program || !data) return;
+  setGear(true);
+  const items = listedSessions();
+  renderReview(root, {
+    weeks: weeksToShow(
+      data.weeks,
+      program,
+      items.map((i) => i.record)
+    ),
+    startWeek: week,
+    program,
+    items,
+    onBack: showHome,
+    onOpen: (item, shown) => showSessionDetail(item, () => showReview(shown)),
+  });
+}
+
+function showProgress(): void {
+  leaveWorkout();
+  const program = programOf();
+  if (!program || !data) return;
+  setGear(true);
+  const all = listedSessions().map((i) => i.record);
+  renderProgress(root, {
+    all,
+    program,
+    weeks: weeksToShow(data.weeks, program, all),
+    next: data.next,
+    onBack: showHome,
+    onWeek: showReview,
+  });
 }
 
 function showSettings(): void {

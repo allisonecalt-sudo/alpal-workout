@@ -41,6 +41,8 @@ export interface HomeOptions {
   unsentAnswers: number;
   unsentNotes: number;
   onSessions: () => void;
+  onProgress: () => void;
+  onReview: () => void;
   /** A one-time note, e.g. a save that was refused. */
   notice?: { text: string; tellHref: string | null };
   onStart: (id: string) => void;
@@ -214,10 +216,10 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
       ${noticeHtml}
       ${leftOpenHtml}
       <h1 id="greeting">${greeting}</h1>
-      <div class="week-dots" aria-label="This week">
-        <div class="dots" id="dots">${dots}</div>
-        <p id="week-words">${doneThisWeek} of ${program.sessionsPerWeek} this week</p>
-      </div>
+      <button type="button" class="week-dots" id="week-btn" aria-label="Weekly review">
+        <span class="dots" id="dots">${dots}</span>
+        <span id="week-words">${doneThisWeek} of ${program.sessionsPerWeek} this week</span>
+      </button>
       ${safety}
       ${doneHtml}
       ${card}
@@ -229,6 +231,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
       <div id="past-weeks">${pastHtml}</div>
       <div class="doors" id="doors">
         <button type="button" class="door" id="door-sessions"><span>${esc(COPY.yourSessionsDoor)}</span><span aria-hidden="true">›</span></button>
+        <button type="button" class="door" id="door-progress"><span>${esc(COPY.progressDoor)}</span><span aria-hidden="true">›</span></button>
       </div>
     </section>`;
 
@@ -248,6 +251,8 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
   });
   root.querySelector('#questions-btn')?.addEventListener('click', opts.onQuestions);
   root.querySelector('#door-sessions')?.addEventListener('click', opts.onSessions);
+  root.querySelector('#door-progress')?.addEventListener('click', opts.onProgress);
+  root.querySelector('#week-btn')?.addEventListener('click', opts.onReview);
   root.querySelector('#left-open-yes')?.addEventListener('click', opts.onLeftOpenYes);
   root.querySelector('#left-open-no')?.addEventListener('click', opts.onLeftOpenNo);
   root.querySelector('#left-open-keep')?.addEventListener('click', opts.onLeftOpenKeep);
