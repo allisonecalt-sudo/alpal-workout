@@ -667,7 +667,11 @@ for (const width of [320, 390, 402, 430]) {
     await expect(page.locator('#rec-play')).toBeVisible();
     expect(await over()).toBeLessThanOrEqual(0);
     expect(await inside()).toBe(true);
-    await page.locator('#note-close').click();
+    await page.locator('#note-close').click(); // a finished recording asks first
+    await expect(page.locator('#confirm-title')).toBeVisible();
+    expect(await over()).toBeLessThanOrEqual(0);
+    expect(await inside()).toBe(true);
+    await page.locator('#confirm-discard').click();
     await page.locator('#note-btn').click();
     await page.locator('#notes-door').click(); // the list
     await expect(page.locator('#notes-list')).toBeVisible();
@@ -755,4 +759,82 @@ test('the beeps are back after a recording ends: stopped, closed, or closed whil
       timeout: 12000,
     })
     .toBeGreaterThan(0);
+});
+
+test('Close on a finished recording asks: Keep editing keeps it, Discard drops it, Send sends it', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  await openUnlocked(page);
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await page.locator('#rec-stop').click();
+  await page.locator('#note-close').click();
+  await expect(page.locator('#confirm-title')).toHaveText('Send this note?');
+  await expect(page.locator('#confirm-send')).toHaveText('Send');
+  await expect(page.locator('#confirm-discard')).toHaveText('Discard');
+  await expect(page.locator('#confirm-keep')).toHaveText('Keep editing');
+  // the backdrop does not dismiss the question either
+  await page.mouse.click(5, 5);
+  await expect(page.locator('#confirm-title')).toBeVisible();
+  // Keep editing: the recording is still there
+  await page.locator('#confirm-keep').click();
+  await expect(page.locator('#rec-play')).toBeVisible();
+  expect(net.messages).toHaveLength(0);
+  // Discard: gone, nothing sent
+  await page.locator('#note-close').click();
+  await page.locator('#confirm-discard').click();
+  await expect(page.locator('#note-sheet')).toHaveCount(0);
+  expect(net.messages).toHaveLength(0);
+  // Send: it goes
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await page.locator('#rec-stop').click();
+  await page.locator('#note-close').click();
+  await page.locator('#confirm-send').click();
+  await expect(page.locator('#note-done')).toHaveText('Sent ✓ Allison will get it.');
+  expect(net.messages).toHaveLength(1);
+  expect(net.messages[0].body.p_msg.kind).toBe('voice');
+});
+
+test('Close on a written note with text asks the same; an empty one just closes', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  await openUnlocked(page);
+  await page.locator('#note-btn').click();
+  await page.locator('#write-start').click();
+  await page.locator('#note-close').click(); // empty: no question
+  await expect(page.locator('#note-sheet')).toHaveCount(0);
+  await page.locator('#note-btn').click();
+  await page.locator('#write-start').click();
+  await page.locator('#note-text').fill('Half a thought');
+  await page.locator('#note-close').click();
+  await expect(page.locator('#confirm-title')).toBeVisible();
+  await page.locator('#confirm-keep').click();
+  await expect(page.locator('#note-text')).toHaveValue('Half a thought');
+  await page.locator('#note-close').click();
+  await page.locator('#confirm-send').click();
+  await expect(page.locator('#note-done')).toBeVisible();
+  expect(net.messages[0].body.p_msg).toMatchObject({ kind: 'text', text: 'Half a thought' });
+});
+
+test('a refused Send from the question goes back to the note with the message', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  net.messageReply = { ok: false, reason: 'too big' };
+  await openUnlocked(page);
+  await page.locator('#note-btn').click();
+  await page.locator('#write-start').click();
+  await page.locator('#note-text').fill('Too much');
+  await page.locator('#note-close').click();
+  await page.locator('#confirm-send').click();
+  await expect(page.locator('#note-error')).toHaveText(
+    "Couldn't send this one. Try a shorter note."
+  );
+  await expect(page.locator('#note-text')).toHaveValue('Too much');
 });

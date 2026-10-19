@@ -30,7 +30,7 @@ export interface NoteSheetOptions {
   start?: 'record' | 'write';
 }
 
-type View = 'idle' | 'recording' | 'review' | 'write' | 'denied' | 'list' | 'done';
+type View = 'idle' | 'recording' | 'review' | 'write' | 'denied' | 'list' | 'done' | 'confirm';
 
 const SHEET_ID = 'note-sheet';
 
@@ -88,13 +88,20 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
   sheet.setAttribute('aria-label', COPY.noteTitle);
   document.body.appendChild(sheet);
   let view: View = 'idle';
+  /** The view to go back to from the "Send this note?" question. */
+  let before: View = 'idle';
   let doneText = '';
   let busy = false;
 
   // The backdrop only closes the sheet when nothing would be lost.
   sheet.addEventListener('click', (e) => {
     if (e.target !== sheet) return;
-    if (view === 'recording' || view === 'review' || (view === 'write' && draft.trim() !== '')) {
+    if (
+      view === 'recording' ||
+      view === 'review' ||
+      view === 'confirm' ||
+      (view === 'write' && draft.trim() !== '')
+    ) {
       return;
     }
     closeNoteSheet();
@@ -103,6 +110,17 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
   const setError = (text: string): void => {
     const el = sheet.querySelector('#note-error');
     if (el) el.textContent = text;
+  };
+
+  /** Close: a finished recording or a written note is never dropped without asking. */
+  const requestClose = (): void => {
+    if (view === 'review' || (view === 'write' && draft.trim() !== '')) {
+      before = view;
+      if (recordingUrl !== null) stopAudio();
+      go('confirm');
+      return;
+    }
+    closeNoteSheet();
   };
 
   const go = (next: View): void => {
@@ -230,6 +248,12 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
           <textarea id="note-text" dir="auto" rows="5" maxlength="4000" placeholder="${esc(COPY.noteWritePlaceholder)}">${esc(draft)}</textarea>
           <button type="button" class="btn btn-main" id="note-send" ${draft.trim() === '' ? 'disabled' : ''}>${esc(COPY.noteSend)}</button>
           <p class="error" id="note-error" role="alert"></p>`;
+      case 'confirm':
+        return `
+          <h2 class="exit-title" id="confirm-title">${esc(COPY.noteConfirmTitle)}</h2>
+          <button type="button" class="btn btn-main" id="confirm-send">${esc(COPY.noteSend)}</button>
+          <button type="button" class="btn btn-soft" id="confirm-discard">${esc(COPY.noteDiscard)}</button>
+          <button type="button" class="btn btn-soft" id="confirm-keep">${esc(COPY.noteKeep)}</button>`;
       case 'denied':
         return `
           <h2 class="exit-title">${esc(COPY.noteTitle)}</h2>
@@ -247,7 +271,7 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
 
   function paint(): void {
     sheet.innerHTML = `<div class="note-card">${body()}${
-      view === 'done'
+      view === 'done' || view === 'confirm'
         ? ''
         : `<button type="button" class="back-link note-close" id="note-close">${esc(COPY.noteClose)}</button>`
     }</div>`;
@@ -255,7 +279,14 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
   }
 
   function wire(): void {
-    sheet.querySelector('#note-close')?.addEventListener('click', closeNoteSheet);
+    sheet.querySelector('#note-close')?.addEventListener('click', requestClose);
+    sheet.querySelector('#confirm-keep')?.addEventListener('click', () => go(before));
+    sheet.querySelector('#confirm-discard')?.addEventListener('click', closeNoteSheet);
+    sheet.querySelector('#confirm-send')?.addEventListener('click', () => {
+      view = before;
+      paint();
+      void send();
+    });
     sheet.querySelector('#rec-start')?.addEventListener('click', () => void startRecording());
     sheet.querySelector('#write-start')?.addEventListener('click', () => go('write'));
     sheet.querySelector('#notes-door')?.addEventListener('click', () => go('list'));
