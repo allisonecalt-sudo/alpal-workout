@@ -8,7 +8,7 @@ import { sameDay } from './clock';
 import { endProgress, newProgress, type Progress } from './progress';
 import { buildPayload, recordOfPayload } from './session';
 import { enqueue, flushQueue, newClientId } from './queue';
-import { buildExport, downloadText, exportFileName } from './export';
+import { buildExport, exportFile, exportFileName } from './export';
 import { buildSteps, restSecondsOf, stoppedAtOf } from './steps';
 import {
   getCode,
@@ -534,7 +534,7 @@ function showSettings(): void {
     onExport: () => {
       if (!data) return;
       const now = Date.now();
-      downloadText(
+      void exportFile(
         exportFileName(now),
         buildExport(
           data,
