@@ -123,9 +123,12 @@ export function renderProgress(root: HTMLElement, opts: ProgressOptions): void {
   const series = checkSeries(opts.all);
   const latest = series.length > 0 ? series[series.length - 1] : null;
   const zeros = series.filter((v) => v === 0).length;
+  // "0 on X of Y" only when there is at least one 0; otherwise the latest and the lowest
   const check =
     label && latest !== null
-      ? `${label} 0 on ${zeros} of ${series.length} · latest ${latest}`
+      ? zeros >= 1
+        ? `${label} 0 on ${zeros} of ${series.length} · latest ${latest}`
+        : `${label}: latest ${latest} · lowest ${Math.min(...series)}`
       : null;
   const body = beforeAfter(opts.all, 'body');
   const mood = beforeAfter(opts.all, 'mood');

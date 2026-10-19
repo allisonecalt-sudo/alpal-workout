@@ -82,7 +82,7 @@ test('with 1 session: numbers only, since-date, no chart and no "full weeks" ver
   await expect(page.locator('#headline')).toHaveText('1 workout so far');
   await expect(page.locator('#headline-basis')).toHaveText('since Oct 12');
   await expect(page.locator('#grew li')).toHaveText(['Hold one: 18 s so far']);
-  await expect(page.locator('#check-words')).toHaveText('Test check 0 on 0 of 1 · latest 1');
+  await expect(page.locator('#check-words')).toHaveText('Test check: latest 1 · lowest 1');
   await expect(page.locator('#check-dots')).toHaveCount(0);
   await expect(page.locator('#body-avg')).toHaveCount(0);
   await expect(page.locator('.progress')).not.toContainText(/streak|missed|overdue|behind/i);
@@ -334,3 +334,27 @@ for (const width of [320, 390, 402, 430]) {
     }
   });
 }
+
+test('no session with a check of 0: latest and lowest, never "0 on 0 of N"', async ({
+  page,
+  net,
+}) => {
+  setup(
+    net,
+    [2, 1, 3].map((v, k) => sess(k, 3, { check_0_10: v }))
+  );
+  await openUnlocked(page);
+  await open(page);
+  await expect(page.locator('#check-words')).toHaveText('Test check: latest 3 · lowest 1');
+  await expect(page.locator('#check-words')).not.toContainText('0 on');
+});
+
+test('"0 on X of Y" only when X is at least 1', async ({ page, net }) => {
+  setup(
+    net,
+    [0, 2, 3].map((v, k) => sess(k, 3, { check_0_10: v }))
+  );
+  await openUnlocked(page);
+  await open(page);
+  await expect(page.locator('#check-words')).toHaveText('Test check 0 on 1 of 3 · latest 3');
+});
