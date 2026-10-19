@@ -24,6 +24,10 @@ export interface NoteSheetOptions {
   items: () => ListedNote[];
   /** Something was sent or kept: the screens may want to redraw. */
   onChanged: () => void;
+  /** Where she is (a screen name); sent with the note. */
+  context?: string;
+  /** Open already recording, or already on the write view. */
+  start?: 'record' | 'write';
 }
 
 type View = 'idle' | 'recording' | 'review' | 'write' | 'denied' | 'list' | 'done';
@@ -133,7 +137,11 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
 
   const send = async (): Promise<void> => {
     if (busy) return;
-    const base = { client_id: newClientId(), created_at: new Date().toISOString() };
+    const base = {
+      client_id: newClientId(),
+      created_at: new Date().toISOString(),
+      ...(opts.context ? { context: opts.context.slice(0, 200) } : {}),
+    };
     let note: QueuedNote;
     if (view === 'review' && recording) {
       busy = true;
@@ -285,4 +293,6 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
   }
 
   paint();
+  if (opts.start === 'write') go('write');
+  else if (opts.start === 'record') void startRecording();
 }

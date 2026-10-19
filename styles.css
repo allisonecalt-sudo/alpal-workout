@@ -1526,3 +1526,20 @@ button.week-dots .dots {
 .tip-float::before {
   display: none;
 }
+
+/* After: Tell Allison and the one question */
+.tell-card h2,
+#after-question h2 {
+  margin-top: 0;
+}
+
+.tell-card p {
+  margin: 0 0 8px;
+}
+
+.aq-text {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}

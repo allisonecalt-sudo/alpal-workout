@@ -76,6 +76,8 @@ let safetyChoice: { week: number; open: boolean } | null = null;
 let lockedLine = false;
 /** Shown once on the next Home, then cleared. */
 let notice: string | null = null;
+/** Which screen is up, for the note's context; empty while a workout screen is up. */
+let screenName = 'Home';
 /** The workout she picked from the chips (null = the Up next one). */
 let chosenId: string | null = null;
 
@@ -171,6 +173,7 @@ function safetyOpen(week: number): boolean {
 
 /** No program: the soft words and her questions when the store answered; the plain warning when it did not. */
 function showNotLoaded(): void {
+  screenName = 'Home';
   setGear(true);
   if (!data) return renderNotLoaded(root);
   renderNotLoaded(root, {
@@ -179,6 +182,7 @@ function showNotLoaded(): void {
 }
 
 function showHome(): void {
+  screenName = 'Home';
   leaveWorkout();
   leaveWalk();
   closeSettingsSheets();
@@ -263,6 +267,7 @@ let stopTimeLine: (() => void) | null = null;
 
 /** Draw the screen for where she is in the workout (Before, the moves, the cool-down, After). */
 function showStage(progress: Progress, resumed: boolean): void {
+  screenName = '';
   stopTimeLine?.();
   stopTimeLine = null;
   setGear(false);
@@ -341,6 +346,10 @@ function showStage(progress: Progress, resumed: boolean): void {
         sessionsThisWeek([...(data?.sessions ?? []), ...queuedSessions()], program.week) + 1,
       onChange: () => setProgress(progress),
       onSave: () => saveSession(progress),
+      onTell: (mode) => openNote(mode, `After ${workout.name} · Week ${program.week}`),
+      question: openQuestions()[0] ?? null,
+      questionsLeft: () => openQuestions().length,
+      saveAnswer,
     });
   }
 }
@@ -389,6 +398,7 @@ async function deliver(session: SessionPayload): Promise<'sent' | 'refused' | 'o
 }
 
 function showWalk(): void {
+  screenName = 'Walk';
   leaveWorkout();
   setGear(true);
   renderWalk(root, {
@@ -436,6 +446,7 @@ function listedSessions(): ListedSession[] {
 let listScroll = 0;
 
 function showSessions(scroll: number): void {
+  screenName = 'Your sessions';
   leaveWorkout();
   setGear(true);
   renderSessionList(root, {
@@ -451,6 +462,7 @@ function showSessions(scroll: number): void {
 }
 
 function showSessionDetail(item: ListedSession, back: () => void): void {
+  screenName = 'Session detail';
   window.scrollTo(0, 0);
   renderSessionDetail(root, {
     item,
@@ -499,6 +511,7 @@ async function saveNote(item: ListedSession, note: string): Promise<'saved' | 'r
 }
 
 function showReview(week: number): void {
+  screenName = 'Weekly review';
   leaveWorkout();
   const program = programOf();
   if (!program || !data) return;
@@ -519,6 +532,7 @@ function showReview(week: number): void {
 }
 
 function showProgress(): void {
+  screenName = 'Progress';
   leaveWorkout();
   const program = programOf();
   if (!program || !data) return;
@@ -535,6 +549,7 @@ function showProgress(): void {
 }
 
 function showSettings(): void {
+  screenName = 'Settings';
   leaveWorkout();
   const program = programOf();
   const first = program?.workouts[0];
@@ -576,6 +591,7 @@ function showSettings(): void {
 }
 
 function showQuestions(): void {
+  screenName = 'Questions';
   leaveWorkout();
   renderQuestions(root, {
     questions: openQuestions(),
@@ -800,14 +816,30 @@ function precachePictures(): void {
     .catch(() => undefined);
 }
 
-$<HTMLButtonElement>(document, '#note-btn').addEventListener('click', () => {
+/** The screen she is on, in words, sent with a note ("Home", "Workout B · move 3"). */
+function contextNow(): string {
+  if (screenName !== '') return screenName;
+  const p = getProgress();
+  const w = p ? workoutOf(p.workoutId) : null;
+  if (!p || !w) return 'Workout';
+  if (p.stage === 'before') return `Before ${w.name}`;
+  if (p.stage === 'run') return `${w.name} · move ${p.idx + 1}`;
+  if (p.stage === 'cooldown') return `${w.name} · cool-down`;
+  return `After ${w.name} · Week ${p.week}`;
+}
+
+function openNote(start?: 'record' | 'write', context?: string): void {
   openNoteSheet({
     code: () => code,
     whatsappHref: tellHref,
     items: () => listNotes(data?.messages ?? []),
     onChanged: syncUnsent,
+    context: context ?? contextNow(),
+    start,
   });
-});
+}
+
+$<HTMLButtonElement>(document, '#note-btn').addEventListener('click', () => openNote());
 
 $<HTMLButtonElement>(document, '#settings-btn').addEventListener('click', () => {
   if (data) showSettings();

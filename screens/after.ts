@@ -4,7 +4,7 @@ import { COPY } from '../copy';
 import { $, esc } from '../dom';
 import { durationSec, type AfterDraft, type Progress } from '../progress';
 import { buildSteps, effectiveRounds, roundsCompleted } from '../steps';
-import type { Feel, Program, Workout } from '../types';
+import type { Feel, Program, Question, Workout } from '../types';
 import { mountTimeConfirm } from './timeconfirm';
 
 export interface AfterOptions {
@@ -16,6 +16,13 @@ export interface AfterOptions {
   /** Called on every change so the draft is kept. */
   onChange: (draft: AfterDraft) => void;
   onSave: () => Promise<void>;
+  /** Open the Note sheet already recording ('record') or on the write view ('write'). */
+  onTell: (mode: 'record' | 'write') => void;
+  /** The next unanswered question, shown inline (null when none are left). */
+  question: Question | null;
+  /** How many questions are still open. */
+  questionsLeft: () => number;
+  saveAnswer: (q: Question, answer: string) => Promise<'saved' | 'refused'>;
 }
 
 const FEELS: { value: Feel; label: string }[] = [
@@ -79,6 +86,28 @@ export function renderAfter(root: HTMLElement, opts: AfterOptions): () => void {
       ).join('')}</div>
       <h2><label for="note">${esc(COPY.noteQuestion)}</label></h2>
       <textarea id="note" dir="auto" rows="3" maxlength="2000"></textarea>
+      <div class="card tell-card" id="tell-card">
+        <h2>${esc(COPY.tellTitle)}</h2>
+        <p>${esc(COPY.tellLine)}</p>
+        <div class="actions-row">
+          <button type="button" class="btn btn-soft" id="tell-record">${esc(COPY.tellRecord)}</button>
+          <button type="button" class="btn btn-soft" id="tell-write">${esc(COPY.tellWrite)}</button>
+        </div>
+      </div>
+      ${
+        opts.question
+          ? `<div class="card" id="after-question">
+        <h2>${esc(COPY.oneQuestion)}</h2>
+        <p class="q-section" id="aq-section">${esc(opts.question.section)}</p>
+        <p class="aq-text" id="aq-text" dir="auto">${esc(opts.question.text)}</p>
+        <label class="sr-only" for="aq-answer">Your answer</label>
+        <textarea id="aq-answer" dir="auto" rows="3" maxlength="4000"></textarea>
+        <p class="error" id="aq-error" role="alert"></p>
+        <button type="button" class="btn btn-soft" id="aq-save" disabled>${esc(COPY.saveAnswer)}</button>
+        <button type="button" class="back-link" id="aq-skip">${esc(COPY.skip)}</button>
+      </div>`
+          : ''
+      }
       <button type="button" class="btn btn-main" id="save-btn">${esc(COPY.save)}</button>
     </section>`;
   const note = $<HTMLTextAreaElement>(root, '#note');
@@ -143,6 +172,33 @@ export function renderAfter(root: HTMLElement, opts: AfterOptions): () => void {
       opts.onChange(d);
     },
   });
+
+  $(root, '#tell-record').addEventListener('click', () => opts.onTell('record'));
+  $(root, '#tell-write').addEventListener('click', () => opts.onTell('write'));
+  const question = opts.question;
+  if (question) {
+    const card = $(root, '#after-question');
+    const area = $<HTMLTextAreaElement>(card, '#aq-answer');
+    const save = $<HTMLButtonElement>(card, '#aq-save');
+    area.addEventListener('input', () => {
+      save.disabled = area.value.trim() === '';
+    });
+    save.addEventListener('click', () => {
+      save.disabled = true;
+      void opts.saveAnswer(question, area.value.trim()).then((result) => {
+        if (result === 'saved') {
+          const left = opts.questionsLeft();
+          card.innerHTML = `<p id="aq-thanks" role="status">${esc(
+            left > 0 ? COPY.thanksLeft(left) : COPY.thanksNone
+          )}</p>`;
+          return;
+        }
+        $(card, '#aq-error').textContent = COPY.saveRefused;
+        save.disabled = area.value.trim() === '';
+      });
+    });
+    $(card, '#aq-skip').addEventListener('click', () => card.remove());
+  }
 
   const btn = $<HTMLButtonElement>(root, '#save-btn');
   btn.addEventListener('click', () => {

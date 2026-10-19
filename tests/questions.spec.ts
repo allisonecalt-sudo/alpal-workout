@@ -204,7 +204,7 @@ test('a workout and an answer waiting together say "things"', async ({ page, net
   await page.getByRole('button', { name: 'Save' }).click();
   await page.getByRole('button', { name: 'Done for now' }).click();
   await runWorkout(page);
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('#unsent-line')).toHaveText(
     "2 things not sent yet — it'll send when you're online."
   );
@@ -300,7 +300,7 @@ test('a slow queued session and an answer queued during it: both are sent, nothi
   // finish a workout while offline: it waits on the phone
   net.online = false;
   await runWorkout(page);
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('#unsent-line')).toBeVisible();
   // back online, but the save is slow, and answers cannot be sent yet
   net.online = true;

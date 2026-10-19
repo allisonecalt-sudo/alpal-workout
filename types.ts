@@ -198,6 +198,8 @@ export interface MessagePayload {
   audio_b64?: string;
   mime?: string;
   duration_sec?: number;
+  /** Where she was (a screen name), so Allison knows what a note is about. Up to 200 characters. */
+  context?: string;
 }
 
 export interface SaveResult {
