@@ -278,7 +278,7 @@ test('playback starts inside the tap: a silent unlock plays at once, the real so
   // the fetch has not come back, but the element is already made and playing (silently)
   const early = await page.evaluate(() => (window as unknown as Win).__audio.plays);
   expect(early).toHaveLength(1);
-  expect(early[0]).toMatch(/^data:audio\/wav/);
+  expect(early[0]).toMatch(/^data:audio\/mpeg;base64,/);
   await expect(page.locator('.player')).toHaveCount(0);
   await expect(page.locator('.player')).toBeVisible();
   const plays = await page.evaluate(() => (window as unknown as Win).__audio.plays);
@@ -298,7 +298,7 @@ test('a cached explanation also starts inside the tap', async ({ page, net }) =>
   await page.locator('#hear-btn').click();
   const early = await page.evaluate(() => (window as unknown as Win).__audio.plays);
   expect(early.length).toBeGreaterThanOrEqual(1);
-  expect(early[0]).toMatch(/^data:audio\/wav/);
+  expect(early[0]).toMatch(/^data:audio\/mpeg;base64,/);
   await expect(page.locator('.player')).toBeVisible();
   expect(net.audioCalls).toHaveLength(1);
 });

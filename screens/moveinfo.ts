@@ -2,7 +2,7 @@
 // "More about this move" block. Shared by the workout screen, the read-only move sheet on Home
 // and the cool-down rows.
 import {
-  SILENT_WAV,
+  SILENT_CLIP,
   isCurrentAudio,
   pauseAudio,
   startAudio,
@@ -112,7 +112,7 @@ function wireHear(root: HTMLElement, move: Move, suffix: string): void {
     btn.textContent = COPY.hearLoading;
     // A phone only lets sound start inside the tap itself. So the sound element is made and
     // played right now (silently); the real sound is put into it when it arrives.
-    const el = startAudio(SILENT_WAV);
+    const el = startAudio(SILENT_CLIP);
     void el.play().catch(() => undefined);
     void loadExplanation(explainSource().code, move.name, explainSource().version).then((res) => {
       loading = false;

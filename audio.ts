@@ -12,9 +12,12 @@ export function startAudio(url: string): HTMLAudioElement {
   return el;
 }
 
-/** Half a second of nothing: played inside a tap so the phone lets this element play later. */
-export const SILENT_WAV =
-  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+/**
+ * A real clip of silence: 0.3 s, mono, 22 kHz MP3 (591 bytes), made with ffmpeg. It is played
+ * inside the tap so the phone lets this element play the real explanation once it has arrived.
+ */
+export const SILENT_CLIP =
+  'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYyLjEyLjEwMQAAAAAAAAAAAAAA//NwwAAAAAAAAAAAAEluZm8AAAAPAAAADgAAAiIAYWFhYWFhYW1tbW1tbW15eXl5eXl5hoaGhoaGhpKSkpKSkpKenp6enp6eqqqqqqqqqra2tra2tra2w8PDw8PDw8/Pz8/Pz8/b29vb29vb5+fn5+fn5/Pz8/Pz8/P/////////AAAAAExhdmM2Mi4yOAAAAAAAAAAAAAAAACQDaQAAAAAAAAIiRvTq9AAAAAAAAAAAAAAAAAD/8xDEAAAAA0gAAAAATEFNRTMuMTAwVVVVVf/zEMQNAAADSAAAAABVVVVVVVVVVVVVVVVV//MQxBoAAANIAAAAAFVVVVVVVVVVVVVVVVX/8xDEJwAAA0gAAAAAVVVVVVVVVVVVVVVVVf/zEMQ0AAADSAAAAABVVVVVVVVVVVVVVVVV//MQxEEAAANIAAAAAFVVVVVVVVVVVVVVVVX/8xDETgAAA0gAAAAAVVVVVVVVVVVVVVVVVf/zEMRbAAADSAAAAABVVVVVVVVVVVVVVVVV//MQxGgAAANIAAAAAFVVVVVVVVVVVVVVVVX/8xDEdQAAA0gAAAAAVVVVVVVVVVVVVVVVVf/zEMSCAAADSAAAAABVVVVVVVVVVVVVVVVV//MQxI8AAANIAAAAAFVVVVVVVVVVVVVVVVX/8xDEnAAAA0gAAAAAVVVVVVVVVVVVVVVVVf/zEMSpAAADSAAAAABVVVVVVVVVVVVVVVVV';
 
 /** Is this still the sound the app is playing (not stopped or replaced meanwhile)? */
 export function isCurrentAudio(el: HTMLAudioElement): boolean {
