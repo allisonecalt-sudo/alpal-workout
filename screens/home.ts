@@ -39,6 +39,8 @@ export interface HomeOptions {
   doneToday: { name: string } | null;
   unsentSessions: number;
   unsentAnswers: number;
+  unsentNotes: number;
+  onSessions: () => void;
   /** A one-time note, e.g. a save that was refused. */
   notice?: { text: string; tellHref: string | null };
   onStart: (id: string) => void;
@@ -46,13 +48,15 @@ export interface HomeOptions {
   onQuestions: () => void;
 }
 
-function unsentText(sessions: number, answers: number): string {
-  const total = sessions + answers;
+function unsentText(sessions: number, answers: number, notes: number): string {
+  const total = sessions + answers + notes;
   if (total === 0) return '';
+  const kinds = [sessions, answers, notes].filter((n) => n > 0).length;
   let what: string;
-  if (answers === 0) what = sessions === 1 ? '1 workout' : `${sessions} workouts`;
-  else if (sessions === 0) what = answers === 1 ? '1 answer' : `${answers} answers`;
-  else what = `${total} things`;
+  if (kinds > 1) what = `${total} things`;
+  else if (sessions > 0) what = sessions === 1 ? '1 workout' : `${sessions} workouts`;
+  else if (answers > 0) what = answers === 1 ? '1 answer' : `${answers} answers`;
+  else what = notes === 1 ? '1 note change' : `${notes} note changes`;
   return `${what} not sent yet — it'll send when you're online.`;
 }
 
@@ -175,7 +179,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
   const offlineHtml = opts.offlineLine
     ? `<p class="quiet" id="offline-line">${esc(opts.offlineLine)}</p>`
     : '';
-  const unsent = unsentText(opts.unsentSessions, opts.unsentAnswers);
+  const unsent = unsentText(opts.unsentSessions, opts.unsentAnswers, opts.unsentNotes);
   const unsentHtml = unsent === '' ? '' : `<p class="quiet" id="unsent-line">${esc(unsent)}</p>`;
   const n = opts.notice;
   const noticeHtml = n
@@ -223,6 +227,9 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
       <p class="quiet" id="quiet-line">${esc(COPY.quietLine)}</p>
       <h2>${esc(COPY.yourWeeks)}</h2>
       <div id="past-weeks">${pastHtml}</div>
+      <div class="doors" id="doors">
+        <button type="button" class="door" id="door-sessions"><span>${esc(COPY.yourSessionsDoor)}</span><span aria-hidden="true">›</span></button>
+      </div>
     </section>`;
 
   root.querySelector('#start-btn')?.addEventListener('click', () => {
@@ -240,6 +247,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
     if (move) openSheet(root, move);
   });
   root.querySelector('#questions-btn')?.addEventListener('click', opts.onQuestions);
+  root.querySelector('#door-sessions')?.addEventListener('click', opts.onSessions);
   root.querySelector('#left-open-yes')?.addEventListener('click', opts.onLeftOpenYes);
   root.querySelector('#left-open-no')?.addEventListener('click', opts.onLeftOpenNo);
   root.querySelector('#left-open-keep')?.addEventListener('click', opts.onLeftOpenKeep);

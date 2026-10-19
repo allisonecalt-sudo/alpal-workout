@@ -54,3 +54,24 @@ export function sameDay(ms: number, nowMs: number): boolean {
     a.getDate() === b.getDate()
   );
 }
+
+/** "Mon Oct 19 · 9:42" for a list row. */
+export function formatDateClock(ms: number): string {
+  const d = new Date(ms);
+  const day = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return `${day} · ${formatClock(ms)}`;
+}
+
+/** "Oct 12" for a since-date. */
+export function formatShortDate(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/** "31 min", or "1 h 12 min" from an hour up. */
+export function formatLength(seconds: number): string {
+  const min = Math.max(0, Math.round(seconds / 60));
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}

@@ -6,7 +6,7 @@ import { $, toast } from './dom';
 import { keepAwake, releaseAwake, unlockAudio } from './device';
 import { sameDay } from './clock';
 import { endProgress, newProgress, type Progress } from './progress';
-import { buildPayload } from './session';
+import { buildPayload, recordOfPayload } from './session';
 import { enqueue, flushQueue, newClientId } from './queue';
 import { buildExport, downloadText, exportFileName } from './export';
 import { buildSteps, restSecondsOf, stoppedAtOf } from './steps';
@@ -34,11 +34,12 @@ import {
   guestLoad,
   guestSaveAnswer,
   guestSaveSession,
+  guestUpdateNote,
   sendQueued,
 } from './store';
 import { sessionsThisWeek } from './program';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
-import { isAnswer } from './types';
+import { isAnswer, isNoteEdit, isSession } from './types';
 import { APP_VERSION, BUILD_SHORT } from './version';
 import { thumbnailUrl, youtubeId } from './video';
 import { renderAfter } from './screens/after';
@@ -47,6 +48,7 @@ import { leaveCooldown, renderCooldown } from './screens/cooldown';
 import { renderHome } from './screens/home';
 import { renderCantOpen, renderLoading, renderNotLoaded } from './screens/notloaded';
 import { renderQuestions } from './screens/questions';
+import { renderSessionDetail, renderSessionList, type ListedSession } from './screens/sessions';
 import { closeSettingsSheets, renderSettings } from './screens/settings';
 import { renderUnlock, showUnlockError } from './screens/unlock';
 import { leaveWorkout, renderWorkout, type RunExit } from './screens/workout';
@@ -139,7 +141,7 @@ function workoutOf(id: string): Workout | null {
 }
 
 function queuedSessions(): SessionPayload[] {
-  return getQueue().filter((q): q is SessionPayload => !isAnswer(q));
+  return getQueue().filter(isSession);
 }
 
 function queuedAnswers(): AnswerPayload[] {
@@ -202,6 +204,7 @@ function showHome(): void {
     doneToday: doneCard,
     unsentSessions: waitingSessions.length,
     unsentAnswers: queuedAnswers().length,
+    unsentNotes: getQueue().filter(isNoteEdit).length,
     notice: shown,
     onStart: startWorkout,
     onChoose: (id) => {
@@ -209,6 +212,7 @@ function showHome(): void {
       showHome();
     },
     onQuestions: showQuestions,
+    onSessions: () => showSessions(0),
   });
 }
 
@@ -336,14 +340,7 @@ async function saveSession(progress: Progress): Promise<void> {
     outcome = 'offline';
   }
   if (outcome === 'sent') {
-    data?.sessions.unshift({
-      client_id: session.client_id,
-      done_at: session.done_at,
-      week: session.week,
-      workout: session.workout,
-      feel: session.feel,
-      check_0_10: session.check_0_10,
-    });
+    data?.sessions.unshift(recordOfPayload(session));
   } else if (outcome === 'offline') {
     setQueue(enqueue(getQueue(), session));
     toast(COPY.savedLocal, 5000);
@@ -353,6 +350,91 @@ async function saveSession(progress: Progress): Promise<void> {
   if (outcome !== 'refused') setDoneToday({ workoutId: workout.id, at: Date.now() });
   setProgress(null);
   showHome();
+}
+
+/** Saved sessions plus the ones still waiting to be sent, newest first. */
+function listedSessions(): ListedSession[] {
+  const edits = new Map(
+    getQueue()
+      .filter(isNoteEdit)
+      .map((e) => [e.target, e.note])
+  );
+  const saved: ListedSession[] = (data?.sessions ?? []).map((r) => {
+    const edited = r.client_id !== null ? edits.get(r.client_id) : undefined;
+    return { record: edited === undefined ? r : { ...r, note: edited || null }, unsent: false };
+  });
+  const waiting: ListedSession[] = queuedSessions().map((p) => ({
+    record: recordOfPayload(p),
+    unsent: true,
+  }));
+  return [...waiting, ...saved].sort(
+    (a, b) => Date.parse(b.record.done_at) - Date.parse(a.record.done_at)
+  );
+}
+
+let listScroll = 0;
+
+function showSessions(scroll: number): void {
+  leaveWorkout();
+  setGear(true);
+  renderSessionList(root, {
+    items: listedSessions(),
+    program: programOf(),
+    scrollTo: scroll,
+    onBack: showHome,
+    onOpen: (item) => {
+      listScroll = window.scrollY;
+      showSessionDetail(item);
+    },
+  });
+}
+
+function showSessionDetail(item: ListedSession): void {
+  window.scrollTo(0, 0);
+  renderSessionDetail(root, {
+    item,
+    program: programOf(),
+    tellHref: tellHref(),
+    onBack: () => showSessions(listScroll),
+    onSaveNote: (note) => saveNote(item, note),
+  });
+}
+
+/** Change a session's note: sent now, or kept on the phone and sent later. */
+async function saveNote(item: ListedSession, note: string): Promise<'saved' | 'refused'> {
+  const id = item.record.client_id;
+  if (id === null) return 'refused';
+  const value = note === '' ? null : note;
+  const apply = (): void => {
+    item.record.note = value;
+    const saved = data?.sessions.find((r) => r.client_id === id);
+    if (saved) saved.note = value;
+  };
+  if (item.unsent) {
+    // still waiting to be sent: change the waiting copy itself
+    setQueue(
+      getQueue().map((q) => (isSession(q) && q.client_id === id ? { ...q, note: value } : q))
+    );
+    apply();
+    return 'saved';
+  }
+  const keep = (): 'saved' => {
+    const rest = getQueue().filter((q) => !(isNoteEdit(q) && q.target === id));
+    setQueue([...rest, { client_id: `note-${newClientId()}`, target: id, note }]);
+    apply();
+    toast(COPY.savedLocal, 5000);
+    return 'saved';
+  };
+  try {
+    const res = await guestUpdateNote(code, id, note);
+    if (res.ok) {
+      apply();
+      return 'saved';
+    }
+    return res.reason === 'locked' ? keep() : 'refused';
+  } catch {
+    return keep();
+  }
 }
 
 function showSettings(): void {

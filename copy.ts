@@ -82,5 +82,13 @@ export const COPY = {
   newBadge: 'New this week',
   steppedBadge: 'Stepped up',
   moveFeelSkip: 'Skip',
+  sessionsTitle: 'Your sessions',
+  sessionsEmpty: 'Nothing here yet. Your workouts will show up here.',
+  notSentYet: 'Not sent yet',
+  noNote: 'No note',
+  editNote: 'Edit note',
+  saveNote: 'Save note',
+  yourSessionsDoor: '🗂 Your sessions',
+  progressDoor: '📈 Progress',
   loading: 'Loading…',
 } as const;

@@ -1004,3 +1004,112 @@ input[type='text'] {
 .feel {
   gap: 16px;
 }
+
+/* Home doors, sessions list and detail */
+.doors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.door {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.session-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.s-badge {
+  flex: none;
+  width: 2.2em;
+  height: 2.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--soft);
+  font-weight: 700;
+}
+
+.s-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.s-when {
+  font-weight: 600;
+}
+
+.s-bits {
+  color: var(--muted);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.s-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--soft);
+  font-size: 0.8rem;
+}
+
+.d-line {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.d-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.d-list li {
+  padding: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+#detail-note {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
