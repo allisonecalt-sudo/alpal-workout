@@ -147,6 +147,10 @@ export interface FakeGuest {
   sessions: FakeSession[];
   questions: FakeQuestion[];
   answered: number;
+  /** Every program week as the store lists it. */
+  weeks?: unknown[];
+  /** The week after the active one (its program data). */
+  next?: unknown;
 }
 
 export function makeGuest(over: Partial<FakeGuest> = {}): FakeGuest {
