@@ -84,7 +84,7 @@ test('paused time is taken out of duration_sec', async ({ page, net }) => {
   await page.locator('#start-btn').click();
   // the workout started 10 minutes ago
   await page.locator('#time-start-fix').click();
-  await page.getByRole('button', { name: '10 min ago' }).click();
+  await page.getByRole('button', { name: '10 min ago', exact: true }).click();
   await page.locator('#before-start').click();
   await pause(page);
   // pretend the pause has lasted 6 minutes
