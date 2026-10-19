@@ -8,6 +8,7 @@ import {
   makeRoundsProgram,
   openUnlocked,
   startWorkout,
+  stopRecording,
   test,
   withRest,
   type Net,
@@ -239,7 +240,7 @@ test('record, stop, play, send: the exact request, with the code in the body onl
   // the backdrop does not throw a recording away
   await page.mouse.click(5, 5);
   await expect(page.locator('#note-sheet')).toBeVisible();
-  await page.locator('#rec-stop').click();
+  await stopRecording(page);
   await expect(page.locator('#rec-play')).toContainText('▶ Play');
   await expect(page.locator('#rec-again')).toBeVisible();
   await page.locator('#rec-play').click();
@@ -278,7 +279,7 @@ test('on an iPhone-style recorder the note goes as audio/mp4', async ({ page, ne
   });
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
-  await page.locator('#rec-stop').click();
+  await stopRecording(page);
   await page.locator('#note-send').click();
   await expect(page.locator('#note-done')).toBeVisible();
   expect(net.messages[0].body.p_msg.mime).toBe('audio/mp4');
@@ -289,10 +290,10 @@ test('Record again starts over and releases the first microphone', async ({ page
   await openUnlocked(page);
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
-  await page.locator('#rec-stop').click();
+  await stopRecording(page);
   await page.locator('#rec-again').click();
   await expect(page.locator('#rec-time')).toBeVisible();
-  await page.locator('#rec-stop').click();
+  await stopRecording(page);
   await page.locator('#note-send').click();
   await expect(page.locator('#note-done')).toBeVisible();
   expect(net.messages).toHaveLength(1);
@@ -429,7 +430,7 @@ test('offline: the note waits in IndexedDB, Home says so, and it is sent once wh
   net.online = false;
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
-  await page.locator('#rec-stop').click();
+  await stopRecording(page);
   await page.locator('#note-send').click();
   await expect(page.locator('#note-done')).toHaveText(
     "Saved on your phone. It'll send when you're online."
@@ -663,7 +664,7 @@ for (const width of [320, 390, 402, 430]) {
     await expect(page.locator('#rec-time')).toBeVisible();
     expect(await over()).toBeLessThanOrEqual(0);
     expect(await inside()).toBe(true);
-    await page.locator('#rec-stop').click(); // review
+    await stopRecording(page); // review
     await expect(page.locator('#rec-play')).toBeVisible();
     expect(await over()).toBeLessThanOrEqual(0);
     expect(await inside()).toBe(true);
@@ -736,7 +737,7 @@ test('the beeps are back after a recording ends: stopped, closed, or closed whil
   // record, stop, close; then close in the middle of a recording; then close while asking
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
-  await page.locator('#rec-stop').click();
+  await stopRecording(page);
   await page.locator('#note-send').click();
   await expect(page.locator('#note-done')).toBeVisible();
   await expect(page.locator('#note-sheet')).toHaveCount(0, { timeout: 5000 });
@@ -769,7 +770,7 @@ test('Close on a finished recording asks: Keep editing keeps it, Discard drops i
   await openUnlocked(page);
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
-  await page.locator('#rec-stop').click();
+  await stopRecording(page);
   await page.locator('#note-close').click();
   await expect(page.locator('#confirm-title')).toHaveText('Send this note?');
   await expect(page.locator('#confirm-send')).toHaveText('Send');
@@ -790,7 +791,7 @@ test('Close on a finished recording asks: Keep editing keeps it, Discard drops i
   // Send: it goes
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
-  await page.locator('#rec-stop').click();
+  await stopRecording(page);
   await page.locator('#note-close').click();
   await page.locator('#confirm-send').click();
   await expect(page.locator('#note-done')).toHaveText('Sent ✓ Allison will get it.');
@@ -837,4 +838,44 @@ test('a refused Send from the question goes back to the note with the message', 
     "Couldn't send this one. Try a shorter note."
   );
   await expect(page.locator('#note-text')).toHaveValue('Too much');
+});
+
+test('a tap-and-stop under half a second says it was too short, not that the mic was refused', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  await openUnlocked(page);
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await expect(page.locator('#rec-time')).toBeVisible();
+  await page.locator('#rec-stop').click(); // straight away
+  await expect(page.locator('#note-short')).toHaveText(
+    'That was too short. Hold on a moment and try again.'
+  );
+  await expect(page.locator('#mic-denied')).toHaveCount(0);
+  expect(net.messages).toHaveLength(0);
+  // the microphone was let go, and she can try again from here
+  const mic = await page.evaluate(
+    () => (window as unknown as { __mic: { opened: number; stopped: number } }).__mic
+  );
+  expect(mic.stopped).toBe(mic.opened);
+  await page.locator('#rec-start').click();
+  await stopRecording(page);
+  await expect(page.locator('#rec-play')).toBeVisible();
+});
+
+test('an empty recording (no bytes at all) says the same', async ({ page, net }) => {
+  setup(net);
+  await openUnlocked(page);
+  await page.evaluate(() => {
+    (window as unknown as { __mic: { empty: boolean } }).__mic.empty = true;
+  });
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await stopRecording(page);
+  await expect(page.locator('#note-short')).toBeVisible();
+  await expect(page.locator('#mic-denied')).toHaveCount(0);
+  await page.locator('#write-start').click(); // and Write instead is offered
+  await expect(page.locator('#note-text')).toBeVisible();
 });

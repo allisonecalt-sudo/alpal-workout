@@ -7,6 +7,7 @@ import {
   makeRoundsProgram,
   openUnlocked,
   startWorkout,
+  stopRecording,
   test,
   type Net,
 } from './fixtures';
@@ -61,7 +62,7 @@ test('🎤 Record opens the sheet already recording, and the note carries the co
   await page.locator('#tell-record').click();
   await expect(page.locator('#note-sheet')).toBeVisible();
   await expect(page.locator('#rec-time')).toBeVisible();
-  await page.locator('#rec-stop').click();
+  await stopRecording(page);
   await page.locator('#note-send').click();
   await expect(page.locator('#note-done')).toBeVisible();
   expect(net.messages).toHaveLength(1);

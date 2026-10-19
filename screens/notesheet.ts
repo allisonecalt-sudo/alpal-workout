@@ -9,6 +9,7 @@ import { newClientId } from '../queue';
 import {
   MAX_SECONDS,
   MicError,
+  TooShortError,
   startRecorder,
   type ActiveRecorder,
   type Recording,
@@ -30,7 +31,8 @@ export interface NoteSheetOptions {
   start?: 'record' | 'write';
 }
 
-type View = 'idle' | 'recording' | 'review' | 'write' | 'denied' | 'list' | 'done' | 'confirm';
+type View =
+  'idle' | 'recording' | 'review' | 'write' | 'denied' | 'list' | 'done' | 'confirm' | 'short';
 
 const SHEET_ID = 'note-sheet';
 
@@ -164,8 +166,8 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
     muteBeeps(false);
     try {
       recording = await r.stop();
-    } catch {
-      return go('denied');
+    } catch (e) {
+      return go(e instanceof TooShortError ? 'short' : 'denied');
     }
     recordingUrl = URL.createObjectURL(recording.blob);
     hitLimit = limit;
@@ -254,6 +256,12 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
           <button type="button" class="btn btn-main" id="confirm-send">${esc(COPY.noteSend)}</button>
           <button type="button" class="btn btn-soft" id="confirm-discard">${esc(COPY.noteDiscard)}</button>
           <button type="button" class="btn btn-soft" id="confirm-keep">${esc(COPY.noteKeep)}</button>`;
+      case 'short':
+        return `
+          <h2 class="exit-title">${esc(COPY.noteTitle)}</h2>
+          <p id="note-short">${esc(COPY.noteTooShort)}</p>
+          <button type="button" class="btn btn-main note-big" id="rec-start">${esc(COPY.noteRecord)}</button>
+          <button type="button" class="btn btn-soft" id="write-start">${esc(COPY.noteWrite)}</button>`;
       case 'denied':
         return `
           <h2 class="exit-title">${esc(COPY.noteTitle)}</h2>

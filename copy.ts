@@ -67,6 +67,7 @@ export const COPY = {
   noteConfirmTitle: 'Send this note?',
   noteDiscard: 'Discard',
   noteKeep: 'Keep editing',
+  noteTooShort: 'That was too short. Hold on a moment and try again.',
   noteBack: '‹ Back',
   noteClose: 'Close',
   noteWritePlaceholder: 'Write here',

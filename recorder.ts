@@ -19,6 +19,12 @@ export interface ActiveRecorder {
   cancel: () => void;
 }
 
+/** The recording came out empty or under half a second: nothing worth sending. */
+export class TooShortError extends Error {}
+
+/** Shorter than this is a slip of the finger, not a note. */
+const MIN_MS = 500;
+
 /** The phone did not let the app use the microphone, or has none. */
 export class MicError extends Error {}
 
@@ -60,11 +66,13 @@ export async function startRecorder(): Promise<ActiveRecorder> {
     elapsed: () => (Date.now() - startedAt) / 1000,
     stop: () =>
       new Promise<Recording>((resolve, reject) => {
-        const durationSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+        const heldMs = Date.now() - startedAt;
+        const durationSec = Math.max(1, Math.round(heldMs / 1000));
         rec.onstop = () => {
           finished = true;
           release();
-          if (chunks.length === 0) return reject(new MicError('empty'));
+          const bytes = chunks.reduce((n, c) => n + c.size, 0);
+          if (bytes === 0 || heldMs < MIN_MS) return reject(new TooShortError('too short'));
           resolve({ blob: new Blob(chunks, { type: mime }), mime, durationSec });
         };
         try {

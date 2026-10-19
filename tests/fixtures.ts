@@ -367,7 +367,15 @@ export async function installDevices(page: Page): Promise<void> {
       },
     });
     // a microphone that can record (the headless browsers have none)
-    const mic = { opened: 0, stopped: 0, mp4: false, deny: false, recorders: 0, delay: 0 };
+    const mic = {
+      opened: 0,
+      stopped: 0,
+      mp4: false,
+      deny: false,
+      recorders: 0,
+      delay: 0,
+      empty: false,
+    };
     w.__mic = mic;
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
@@ -398,7 +406,9 @@ export async function installDevices(page: Page): Promise<void> {
       stop() {
         this.state = 'inactive';
         setTimeout(() => {
-          this.ondataavailable?.({ data: new Blob([new Uint8Array([1, 2, 3, 4, 5, 6])]) });
+          this.ondataavailable?.({
+            data: new Blob([new Uint8Array(mic.empty ? [] : [1, 2, 3, 4, 5, 6])]),
+          });
           this.onstop?.();
         }, 0);
       }
@@ -524,4 +534,10 @@ export async function runWorkout(page: Page): Promise<void> {
   await page.locator('#done-btn').click();
   await page.locator('#done-btn').click();
   await expect(page.locator('#after-title')).toBeVisible();
+}
+
+/** Stop a recording after a believable moment (a note under half a second counts as a slip). */
+export async function stopRecording(page: Page): Promise<void> {
+  await page.waitForTimeout(650);
+  await page.locator('#rec-stop').click();
 }
