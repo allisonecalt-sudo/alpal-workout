@@ -2,7 +2,7 @@
 // Everything is remembered on the phone.
 import { COPY } from '../copy';
 import { $, esc, toast } from '../dom';
-import { closeTip } from '../tips';
+import { closeTip, consider } from '../tips';
 import {
   getBeeps,
   getGetReady,
@@ -106,6 +106,7 @@ export function renderSettings(root: HTMLElement, opts: SettingsOptions): void {
     tipsBtn.setAttribute('aria-pressed', 'true');
     tipsBtn.textContent = COPY.tipsHide;
     toast(COPY.tipsAgainDone);
+    consider();
   });
   const pick = (id: string, apply: (v: string) => void): void => {
     const group = $(root, `#${id}`);
