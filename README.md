@@ -9,6 +9,8 @@ A small guided workout app for one person at a time. Open it on a phone, enter a
 - Several workouts a week, each with an optional warm-up, main moves repeated for a number of rounds, and an optional cool-down. Home shows the next one not yet done this week, with the others as chips.
 - Every move can carry a video (shown only after a tap, in the no-cookie player) and a few lines of extra info.
 - A list of questions can be answered whenever the person likes, one at a time.
+- Looking back: a list of past sessions (with an editable note), a weekly review, and a Progress page written in words first (no chart under five points, no streaks).
+- Extras: a jump list of steps, a cardio choice, walks outside a workout (never counted toward the week), settings (voice, beeps, rest, get-ready, export), and a Done card with the moves done for the first time.
 - Everything personal (the person's name, the program, a contact number) is **not in this repo**. It is loaded at runtime from a locked store.
 
 ## Why it is built this way
