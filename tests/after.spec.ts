@@ -426,3 +426,39 @@ test('coming back online sends the queue without reopening the app', async ({ pa
   await page.waitForTimeout(400);
   expect(net.saves).toHaveLength(1);
 });
+
+test('After: an unconfirmed finish time never drifts: fixed when After appeared, kept through a reload', async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date(2026, 9, 19, 9, 4, 30) });
+  await openUnlocked(page);
+  await startWorkout(page);
+  await page.getByRole('button', { name: 'Exit' }).click();
+  await page.getByRole('button', { name: 'Log what I did' }).click();
+  await expect(page.locator('#time-end')).toHaveText('Finished · 9:04. Right?');
+  await page.clock.fastForward(5 * 60_000);
+  await expect(page.locator('#time-end')).toHaveText('Finished · 9:04. Right?');
+  await page.reload();
+  await expect(page.locator('#time-end')).toHaveText('Finished · 9:04. Right?');
+  // Right confirms it, and it stays
+  await page.locator('#time-end-ok').click();
+  await expect(page.locator('#time-end')).toHaveText('Finished 9:04 ✓');
+});
+
+test('After: hurt moves count in the skipped line, and say so', async ({ page }) => {
+  await openUnlocked(page);
+  await startWorkout(page);
+  await page.locator('#done-btn').click();
+  await page.getByRole('button', { name: 'Skip' }).click();
+  await page.getByRole('button', { name: 'This hurts' }).click();
+  await expect(page.locator('#after-skipped')).toHaveText('2 moves skipped (1 because it hurt)');
+});
+
+test('After: only a hurt move is still "1 move skipped (1 because it hurt)"', async ({ page }) => {
+  await openUnlocked(page);
+  await startWorkout(page);
+  await page.getByRole('button', { name: 'This hurts' }).click();
+  await page.locator('#done-btn').click();
+  await page.locator('#done-btn').click();
+  await expect(page.locator('#after-skipped')).toHaveText('1 move skipped (1 because it hurt)');
+});
