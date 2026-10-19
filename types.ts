@@ -51,13 +51,28 @@ export interface Program {
   painRule?: string;
 }
 
+/** One saved (or waiting) session, as the history shows it. */
 export interface SessionSummary {
   client_id: string | null;
   done_at: string;
+  started_at: string | null;
+  duration_sec: number | null;
+  lite: boolean;
+  readings: Readings;
+  moves: SessionMove[];
+  note: string | null;
   week: number | null;
   workout: string | null;
   feel: Feel | null;
   check_0_10: number | null;
+}
+
+/** A program week as the store lists it (past, active or future). */
+export interface WeekInfo {
+  week: number;
+  label: string;
+  active: boolean;
+  workouts: { id: string; name: string; moves: string[] }[];
 }
 
 export interface Question {
@@ -71,6 +86,10 @@ export interface GuestData {
   tellWhatsapp: string | null;
   program: Program | null;
   sessions: SessionSummary[];
+  /** Every program week, past, active and future. */
+  weeks: WeekInfo[];
+  /** The week after the active one, when the store has it. */
+  next: Program | null;
   /** Unanswered questions, in order. */
   questions: Question[];
   answered: number;
@@ -129,11 +148,28 @@ export interface AnswerPayload {
   answer: string;
 }
 
+/** An edit of a saved session's note, waiting to be sent. */
+export interface NoteEdit {
+  /** Its own id (so the queue can tell it from other items). */
+  client_id: string;
+  /** The client_id of the session whose note it changes. */
+  target: string;
+  note: string;
+}
+
 /** Anything that can wait in the phone-side queue. */
-export type QueueItem = SessionPayload | AnswerPayload;
+export type QueueItem = SessionPayload | AnswerPayload | NoteEdit;
 
 export function isAnswer(item: QueueItem): item is AnswerPayload {
   return 'question_id' in item;
+}
+
+export function isNoteEdit(item: QueueItem): item is NoteEdit {
+  return 'target' in item;
+}
+
+export function isSession(item: QueueItem): item is SessionPayload {
+  return 'done_at' in item;
 }
 
 export interface SaveResult {

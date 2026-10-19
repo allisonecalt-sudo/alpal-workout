@@ -5,7 +5,7 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
 import { parseGuest } from './program';
 import { getCache, setCache } from './storage';
 import type { AnswerPayload, GuestData, QueueItem, SaveResult, SessionPayload } from './types';
-import { isAnswer } from './types';
+import { isAnswer, isNoteEdit } from './types';
 
 // The schema the two functions live in. Sent as a profile header only when it is not public.
 const SCHEMA = 'public';
@@ -85,9 +85,22 @@ export async function guestSaveAnswer(code: string, answer: AnswerPayload): Prom
   return parseSave(await rpc('guest_save_answer', { p_code: code, p_answer: answer }));
 }
 
+/** Change the note of a saved session. Throws StoreError when offline (the caller queues it). */
+export async function guestUpdateNote(
+  code: string,
+  sessionId: string,
+  note: string
+): Promise<SaveResult> {
+  return parseSave(
+    await rpc('guest_update_note', { p_code: code, p_client_id: sessionId, p_note: note })
+  );
+}
+
 /** Send whatever is waiting in the queue, by kind. */
 export function sendQueued(code: string, item: QueueItem): Promise<SaveResult> {
-  return isAnswer(item) ? guestSaveAnswer(code, item) : guestSaveSession(code, item);
+  if (isAnswer(item)) return guestSaveAnswer(code, item);
+  if (isNoteEdit(item)) return guestUpdateNote(code, item.target, item.note);
+  return guestSaveSession(code, item);
 }
 
 /** The last good copy kept on the phone, parsed; null when there is none. */

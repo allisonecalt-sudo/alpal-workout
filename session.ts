@@ -1,7 +1,7 @@
 // Turns a finished (or stopped) workout into what is sent to the store. Pure, unit tested.
 import { durationSec, type Progress } from './progress';
 import { buildSteps, movesLog } from './steps';
-import type { Readings, SessionPayload, Workout } from './types';
+import type { Readings, SessionPayload, SessionSummary, Workout } from './types';
 
 export function buildPayload(
   p: Progress,
@@ -46,5 +46,23 @@ export function buildPayload(
     feel: a.feel,
     check_0_10: a.check,
     note: note === '' ? null : note,
+  };
+}
+
+/** A waiting session as the history shows it (so it can be listed before it is sent). */
+export function recordOfPayload(p: SessionPayload): SessionSummary {
+  return {
+    client_id: p.client_id,
+    done_at: p.done_at,
+    started_at: p.started_at,
+    duration_sec: p.duration_sec,
+    lite: p.lite,
+    readings: p.readings,
+    moves: p.moves,
+    note: p.note,
+    week: p.week,
+    workout: p.workout,
+    feel: p.feel,
+    check_0_10: p.check_0_10,
   };
 }

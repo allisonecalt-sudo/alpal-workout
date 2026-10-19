@@ -7,7 +7,12 @@ import type {
   MoveOption,
   Program,
   Question,
+  SessionMove,
   SessionSummary,
+  WeekInfo,
+  Readings,
+  MoveStatus,
+  Part,
   Workout,
 } from './types';
 
@@ -170,16 +175,120 @@ function parseFeel(v: unknown): Feel | null {
   return v === 'easy' || v === 'right' || v === 'hard' ? v : null;
 }
 
+const STATUSES: MoveStatus[] = ['done', 'skipped', 'hurt'];
+const PARTS: Part[] = ['warmup', 'main', 'cooldown'];
+
+function parseMoveLog(raw: unknown): SessionMove[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SessionMove[] = [];
+  for (const m of raw) {
+    if (!isObj(m) || typeof m.name !== 'string') continue;
+    const status = STATUSES.find((x) => x === m.status);
+    const part = PARTS.find((x) => x === m.part) ?? 'main';
+    if (!status) continue;
+    const entry: SessionMove = {
+      name: m.name,
+      part,
+      round: typeof m.round === 'number' ? m.round : 1,
+      status,
+    };
+    if (typeof m.option === 'string' && m.option !== '') entry.option = m.option;
+    out.push(entry);
+  }
+  return out;
+}
+
+function numOrNull(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+function parseReadings(raw: unknown): Readings {
+  if (!isObj(raw)) return {};
+  const out: Readings = {};
+  if (isObj(raw.before)) {
+    out.before = {
+      body: numOrNull(raw.before.body),
+      mood: numOrNull(raw.before.mood),
+      check: numOrNull(raw.before.check),
+    };
+  }
+  if (isObj(raw.after)) {
+    out.after = { body: numOrNull(raw.after.body), mood: numOrNull(raw.after.mood) };
+  }
+  if (isObj(raw.holds)) {
+    const holds: Record<string, number[]> = {};
+    for (const [name, list] of Object.entries(raw.holds)) {
+      if (Array.isArray(list)) {
+        const nums = list.filter((n): n is number => typeof n === 'number');
+        if (nums.length > 0) holds[name] = nums;
+      }
+    }
+    if (Object.keys(holds).length > 0) out.holds = holds;
+  }
+  const stop = raw.stopped_at;
+  if (isObj(stop)) {
+    const part = PARTS.find((x) => x === stop.part);
+    if (part) {
+      out.stopped_at = {
+        part,
+        round: typeof stop.round === 'number' ? stop.round : 1,
+        move: typeof stop.move === 'string' ? stop.move : null,
+      };
+    }
+  }
+  if (isObj(raw.move_feel)) {
+    const mf: Record<string, Feel> = {};
+    for (const [name, v] of Object.entries(raw.move_feel)) {
+      const f = parseFeel(v);
+      if (f) mf[name] = f;
+    }
+    if (Object.keys(mf).length > 0) out.move_feel = mf;
+  }
+  return out;
+}
+
 function parseSession(raw: unknown): SessionSummary | null {
   if (!isObj(raw) || typeof raw.done_at !== 'string') return null;
   return {
     client_id: typeof raw.client_id === 'string' ? raw.client_id : null,
     done_at: raw.done_at,
+    started_at: typeof raw.started_at === 'string' ? raw.started_at : null,
+    duration_sec: numOrNull(raw.duration_sec),
+    lite: raw.lite === true,
+    readings: parseReadings(raw.readings),
+    moves: parseMoveLog(raw.moves),
+    note: typeof raw.note === 'string' && raw.note !== '' ? raw.note : null,
     week: typeof raw.week === 'number' ? raw.week : null,
     workout: typeof raw.workout === 'string' && raw.workout !== '' ? raw.workout : null,
     feel: parseFeel(raw.feel),
     check_0_10: typeof raw.check_0_10 === 'number' ? raw.check_0_10 : null,
   };
+}
+
+function parseWeeks(raw: unknown): WeekInfo[] {
+  if (!Array.isArray(raw)) return [];
+  const out: WeekInfo[] = [];
+  for (const w of raw) {
+    if (!isObj(w) || typeof w.week !== 'number') continue;
+    const workouts = Array.isArray(w.workouts)
+      ? w.workouts
+          .filter((x): x is Obj => isObj(x) && typeof x.name === 'string')
+          .map((x) => ({
+            id: typeof x.id === 'string' ? x.id : '',
+            name: x.name as string,
+            moves: Array.isArray(x.moves)
+              ? x.moves.filter((m): m is string => typeof m === 'string')
+              : [],
+          }))
+      : [];
+    out.push({
+      week: w.week,
+      label: typeof w.label === 'string' ? w.label : `Week ${w.week}`,
+      active: w.active === true,
+      workouts,
+    });
+  }
+  return out.sort((a, b) => a.week - b.week);
 }
 
 function parseQuestion(raw: unknown): Question | null {
@@ -201,12 +310,21 @@ export function parseGuest(raw: unknown): GuestData | null {
   const questions = Array.isArray(raw.questions)
     ? raw.questions.map(parseQuestion).filter((q): q is Question => q !== null)
     : [];
+  const program = parseProgram(raw.program);
+  const weeks = parseWeeks(raw.weeks);
+  const activeWeek = program?.week ?? weeks.find((w) => w.active)?.week ?? null;
+  const next =
+    raw.next !== undefined && raw.next !== null && activeWeek !== null
+      ? parseProgram({ week: activeWeek + 1, data: raw.next })
+      : null;
   return {
     name: typeof raw.name === 'string' ? raw.name : '',
     tellWhatsapp:
       typeof raw.tell_whatsapp === 'string' && raw.tell_whatsapp !== '' ? raw.tell_whatsapp : null,
-    program: parseProgram(raw.program),
+    program,
     sessions,
+    weeks,
+    next,
     questions,
     answered: typeof raw.answered === 'number' ? raw.answered : 0,
   };
@@ -218,16 +336,30 @@ export interface SessionLite {
   done_at?: string;
 }
 
+/** A walk logged outside a workout is a session of its own kind and never counts toward the week. */
+export const WALK = 'walk';
+
+export function isWalk(s: { workout: string | null }): boolean {
+  return s.workout === WALK;
+}
+
+/** How many walks this program week. */
+export function walksThisWeek(sessions: SessionLite[], week: number): number {
+  return sessions.filter((s) => s.week === week && isWalk(s)).length;
+}
+
 /** Which workouts are done in this program week. */
 export function doneIds(sessions: SessionLite[], week: number): Set<string> {
   const ids = new Set<string>();
-  for (const s of sessions) if (s.week === week && s.workout !== null) ids.add(s.workout);
+  for (const s of sessions) {
+    if (s.week === week && s.workout !== null && !isWalk(s)) ids.add(s.workout);
+  }
   return ids;
 }
 
 /** How many sessions count toward this program week (any workout). */
 export function sessionsThisWeek(sessions: SessionLite[], week: number): number {
-  return sessions.filter((s) => s.week === week).length;
+  return sessions.filter((s) => s.week === week && !isWalk(s)).length;
 }
 
 /** The week is done only when the session count reaches sessionsPerWeek. */
@@ -245,7 +377,7 @@ export function nextWorkout(
   sessions: SessionLite[],
   week: number
 ): Workout | null {
-  const inWeek = sessions.filter((s) => s.week === week);
+  const inWeek = sessions.filter((s) => s.week === week && !isWalk(s));
   const fresh = workouts.find((w) => !inWeek.some((s) => s.workout === w.id));
   if (fresh) return fresh;
   let best: Workout | null = null;
@@ -264,7 +396,8 @@ export function nextWorkout(
 }
 
 /** "Week 2 · A ✓ B ✓ C" per program week, newest first. One workout: "Week 1 · 2 of 3". */
-export function weekRows(sessions: SessionLite[], program: Program): string[] {
+export function weekRows(all: SessionLite[], program: Program): string[] {
+  const sessions = all.filter((s) => !isWalk(s));
   const weeks = [...new Set(sessions.map((s) => s.week).filter((w): w is number => w !== null))];
   weeks.sort((a, b) => b - a);
   return weeks.map((w) => {
