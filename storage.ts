@@ -14,6 +14,7 @@ const K = {
   beeps: 'aw.beeps',
   rest: 'aw.rest',
   ready: 'aw.ready',
+  cardio: 'aw.cardio',
 } as const;
 
 function read(key: string): string | null {
@@ -76,6 +77,14 @@ export function getGetReady(): number {
 }
 export function setGetReady(seconds: number): void {
   write(K.ready, String(seconds));
+}
+
+/** The cardio option she picked last time (its label). */
+export function getCardio(): string | null {
+  return read(K.cardio);
+}
+export function setCardio(label: string): void {
+  write(K.cardio, label);
 }
 
 /** "Use a different code": forget this person's code and everything kept for them. */

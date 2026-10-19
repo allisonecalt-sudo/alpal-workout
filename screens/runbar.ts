@@ -7,15 +7,21 @@ import { getVoice, setVoice } from '../storage';
 
 export interface RunBarHandlers {
   onBack: () => void;
+  onSteps?: () => void;
   onPause: () => void;
   onExit: () => void;
 }
 
 /** `showVoice` is false on screens that never speak. */
-export function runBarHtml(showVoice = true): string {
+export function runBarHtml(showVoice = true, showSteps = false): string {
   return `<div class="runbar">
       <button type="button" class="back-link" id="back-btn" aria-label="Back one step">‹ Back</button>
       <span class="runbar-right">
+        ${
+          showSteps
+            ? `<button type="button" class="chip chip-inline steps-btn" id="steps-btn">${COPY.stepsBtn}</button>`
+            : ''
+        }
         <button type="button" class="icon-btn" id="pause-btn" aria-label="Pause workout">⏸</button>
         <button type="button" class="icon-btn" id="exit-btn" aria-label="Exit">✕</button>
         ${
@@ -31,6 +37,7 @@ export function wireRunBar(root: HTMLElement, h: RunBarHandlers): void {
   $(root, '#back-btn').addEventListener('click', h.onBack);
   $(root, '#pause-btn').addEventListener('click', h.onPause);
   $(root, '#exit-btn').addEventListener('click', h.onExit);
+  root.querySelector('#steps-btn')?.addEventListener('click', () => h.onSteps?.());
   const voice = root.querySelector<HTMLButtonElement>('#voice-btn');
   if (voice) {
     const paint = (): void => {

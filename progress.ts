@@ -40,8 +40,19 @@ export interface Progress {
   startedAt: number;
   /** The next step to do (an index into the workout's step list). */
   idx: number;
-  /** One status per step finished so far. */
-  statuses: MoveStatus[];
+  /** A status per step answered (null: not answered, or taken back). */
+  statuses: (MoveStatus | null)[];
+  /** The cardio choices made: choice key to the option picked. */
+  choices: Record<string, number>;
+  /** After the last step: skipped steps offered again. */
+  redoAsk: boolean;
+  redoAsked: boolean;
+  /** Doing the skipped steps now: the ones still to do. */
+  redoing: boolean;
+  redo: number[];
+  /** A new or stepped-up move just finished: ask how it felt (the move name). */
+  feelAsk: string | null;
+  moveFeel: Record<string, Feel>;
   /** The between-rounds screen is showing (idx is the first step of the next round). */
   between: boolean;
   /** A rest between main moves is running (idx is the move that comes next). */
@@ -83,6 +94,13 @@ export function newProgress(week: number, workoutId: string, now: number): Progr
     startedAt: now,
     idx: 0,
     statuses: [],
+    choices: {},
+    redoAsk: false,
+    redoAsked: false,
+    redoing: false,
+    redo: [],
+    feelAsk: null,
+    moveFeel: {},
     between: false,
     rest: null,
     hold: null,
@@ -125,6 +143,9 @@ export function normaliseProgress(raw: unknown): Progress | null {
     after: { ...base.after, ...(r.after ?? {}) },
     statuses: Array.isArray(r.statuses) ? r.statuses : [],
     holds: typeof r.holds === 'object' && r.holds !== null ? r.holds : {},
+    choices: typeof r.choices === 'object' && r.choices !== null ? r.choices : {},
+    moveFeel: typeof r.moveFeel === 'object' && r.moveFeel !== null ? r.moveFeel : {},
+    redo: Array.isArray(r.redo) ? r.redo : [],
     pausedRunning: Array.isArray(r.pausedRunning) ? r.pausedRunning : [],
   };
 }

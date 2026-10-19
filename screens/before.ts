@@ -3,6 +3,7 @@
 import { COPY } from '../copy';
 import { $, esc } from '../dom';
 import type { BeforeAnswers } from '../progress';
+import { newMoveNames } from '../steps';
 import type { Program, Workout } from '../types';
 import { mountTimeConfirm } from './timeconfirm';
 
@@ -38,6 +39,11 @@ export function renderBefore(root: HTMLElement, opts: BeforeOptions): () => void
     <section class="card before">
       <div class="runbar"><button type="button" class="back-link" id="before-home">‹ Home</button></div>
       <h1>${esc(workout.name)}</h1>
+      ${
+        newMoveNames(workout).length > 0
+          ? `<p class="quiet" id="before-new">new this week: ${esc(newMoveNames(workout).join(', '))}</p>`
+          : ''
+      }
       ${row('before-body', COPY.bodyToday, 1, 10, b.body)}
       ${row('before-mood', COPY.mood, 1, 10, b.mood)}
       ${checkRow}

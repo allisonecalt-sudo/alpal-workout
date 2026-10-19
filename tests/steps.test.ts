@@ -140,10 +140,13 @@ test('where she stopped: the move in front of her, or the last one finished', ()
 
 test('rounds completed counts only rounds with every move answered', () => {
   const steps = buildSteps(workout());
-  expect(roundsCompleted(steps, 3)).toBe(0);
-  expect(roundsCompleted(steps, 4)).toBe(1);
-  expect(roundsCompleted(steps, 5)).toBe(1);
-  expect(roundsCompleted(steps, 6)).toBe(2);
+  const at = (n: number) => Array.from({ length: n }, () => 'done' as const);
+  expect(roundsCompleted(steps, at(3))).toBe(0);
+  expect(roundsCompleted(steps, at(4))).toBe(1);
+  expect(roundsCompleted(steps, at(5))).toBe(1);
+  expect(roundsCompleted(steps, at(6))).toBe(2);
+  // jumped around: round 2 done and round 1 not
+  expect(roundsCompleted(steps, ['done', 'done', null, null, 'done', 'done'])).toBe(1);
 });
 
 test('home lines per part', () => {

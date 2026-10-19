@@ -282,10 +282,10 @@ function showStage(progress: Progress, resumed: boolean): void {
       workout,
       progress,
       onBack: () => {
-        const last = buildSteps(workout, progress.before.lite).length - 1;
+        const last = buildSteps(workout, progress.before.lite, progress.choices).length - 1;
         progress.stage = 'run';
         progress.idx = last;
-        progress.statuses = progress.statuses.slice(0, last);
+        progress.statuses[last] = null;
         delete progress.holds[String(last)];
         setProgress(progress);
         showStage(progress, false);
@@ -461,7 +461,7 @@ function saveLeftOpen(progress: Progress): void {
   const workout = workoutOf(progress.workoutId);
   if (!workout) return;
   if (progress.stage === 'run') {
-    const steps = buildSteps(workout, progress.before.lite);
+    const steps = buildSteps(workout, progress.before.lite, progress.choices);
     progress.stoppedAt = stoppedAtOf(
       steps,
       progress.idx,

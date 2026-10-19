@@ -38,9 +38,9 @@ export function renderAfter(root: HTMLElement, opts: AfterOptions): () => void {
   const { workout, progress } = opts;
   const d = progress.after;
   const stopped = progress.stoppedAt !== null;
-  const steps = buildSteps(workout, progress.before.lite);
+  const steps = buildSteps(workout, progress.before.lite, progress.choices);
   const rounds = effectiveRounds(workout, progress.before.lite);
-  const doneRounds = roundsCompleted(steps, progress.statuses.length);
+  const doneRounds = roundsCompleted(steps, progress.statuses);
   const skipped =
     progress.statuses.filter((s) => s === 'skipped').length +
     (progress.cooldownStatus === 'skipped' ? workout.cooldown.length : 0);

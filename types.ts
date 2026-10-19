@@ -13,6 +13,16 @@ export interface Move {
   watchOut?: string[];
   /** Up to two pictures: where it starts and where it ends (paths or https links). */
   images?: string[];
+  /** A choice (e.g. outside or indoors): picking one runs its moves in place of this one. */
+  options?: MoveOption[];
+  /** Small badges on the move card, and a quick "how was it" after the last round. */
+  new?: boolean;
+  stepped?: boolean;
+}
+
+export interface MoveOption {
+  label: string;
+  moves: Move[];
 }
 
 export interface Workout {
@@ -75,6 +85,8 @@ export interface SessionMove {
   part: Part;
   round: number;
   status: MoveStatus;
+  /** Which option was chosen, for a move that had a choice. */
+  option?: string;
 }
 
 export interface StoppedAt {
@@ -90,6 +102,8 @@ export interface Readings {
   /** Seconds held, per move name, one entry per time it was held. */
   holds?: Record<string, number[]>;
   stopped_at?: StoppedAt;
+  /** How a new or stepped-up move felt, by move name. */
+  move_feel?: Record<string, Feel>;
 }
 
 /** What is sent to the store for one finished workout. */

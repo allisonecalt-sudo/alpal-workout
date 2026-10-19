@@ -1,6 +1,15 @@
 // Reads what the store sends and checks its shape. Anything wrong becomes "no program",
 // which the app shows as the "not loaded" message. It never invents a workout.
-import type { Feel, GuestData, Move, Program, Question, SessionSummary, Workout } from './types';
+import type {
+  Feel,
+  GuestData,
+  Move,
+  MoveOption,
+  Program,
+  Question,
+  SessionSummary,
+  Workout,
+} from './types';
 
 type Obj = Record<string, unknown>;
 
@@ -14,17 +23,23 @@ function strings(v: unknown): string[] | undefined {
   return list.length > 0 ? list : undefined;
 }
 
-function parseMove(raw: unknown): Move | null {
+function parseMove(raw: unknown, allowOptions = true): Move | null {
   if (!isObj(raw)) return null;
   const { name, how, reps, seconds } = raw;
   if (typeof name !== 'string' || name === '') return null;
   if (!Array.isArray(how) || !how.every((l) => typeof l === 'string')) return null;
   const hasReps = typeof reps === 'string' && reps !== '';
   const hasSeconds = typeof seconds === 'number' && seconds > 0;
-  if (hasReps === hasSeconds) return null; // exactly one of the two
+  // a move with options (a choice) needs neither; every other move has exactly one of the two
+  const options = allowOptions ? parseOptions(raw.options) : undefined;
+  if (options === null) return null;
+  if (!options && hasReps === hasSeconds) return null;
   const move: Move = { name, how: how as string[] };
-  if (hasReps) move.reps = reps as string;
+  if (options) move.options = options;
+  else if (hasReps) move.reps = reps as string;
   else move.seconds = seconds as number;
+  if (raw.new === true) move.new = true;
+  if (raw.stepped === true) move.stepped = true;
   if (typeof raw.video === 'string' && raw.video !== '') move.video = raw.video;
   if (typeof raw.why === 'string' && raw.why !== '') move.why = raw.why;
   const tips = strings(raw.tips);
@@ -37,6 +52,25 @@ function parseMove(raw: unknown): Move | null {
     .slice(0, 2);
   if (images && images.length > 0) move.images = images;
   return move;
+}
+
+function parseOptions(raw: unknown): MoveOption[] | undefined | null {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const out: MoveOption[] = [];
+  for (const o of raw) {
+    if (!isObj(o) || typeof o.label !== 'string' || o.label === '' || !Array.isArray(o.moves))
+      return null;
+    const moves: Move[] = [];
+    for (const m of o.moves) {
+      const pm = parseMove(m, false);
+      if (!pm) return null;
+      moves.push(pm);
+    }
+    if (moves.length === 0) return null;
+    out.push({ label: o.label, moves });
+  }
+  return out;
 }
 
 /** A missing list is empty; a list with a bad move makes the whole thing invalid (null). */
@@ -245,5 +279,6 @@ export function weekRows(sessions: SessionLite[], program: Program): string[] {
 }
 
 export function movePlain(m: Move): string {
+  if (m.options && m.options.length > 0) return m.options.map((o) => o.label).join(' or ');
   return m.reps ?? `${m.seconds} s`;
 }

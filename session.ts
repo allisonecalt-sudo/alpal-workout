@@ -9,7 +9,7 @@ export function buildPayload(
   week: number,
   clientId: string
 ): SessionPayload {
-  const steps = buildSteps(w, p.before.lite);
+  const steps = buildSteps(w, p.before.lite, p.choices);
   const readings: Readings = {};
   const b = p.before;
   if (b.body !== null || b.mood !== null || b.check !== null) {
@@ -30,6 +30,7 @@ export function buildPayload(
     });
   if (Object.keys(holds).length > 0) readings.holds = holds;
   if (p.stoppedAt) readings.stopped_at = p.stoppedAt;
+  if (Object.keys(p.moveFeel).length > 0) readings.move_feel = p.moveFeel;
 
   const note = a.note.trim();
   return {

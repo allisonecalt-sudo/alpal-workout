@@ -912,3 +912,88 @@ input[type='text'] {
 .frames-thumb .frame {
   flex: 0 1 60%;
 }
+
+/* Steps sheet (the jump list), badges, cardio choice */
+.runbar {
+  flex-wrap: wrap;
+}
+
+.steps-btn {
+  min-height: 44px;
+}
+
+.steps-card {
+  max-height: 85vh;
+}
+
+.steps-list {
+  overflow-y: auto;
+  max-height: 55vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.step-group {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 10px 0 2px;
+}
+
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.step-row[aria-current='step'] {
+  font-weight: 700;
+}
+
+.step-mark {
+  width: 1.4em;
+  text-align: center;
+  color: var(--muted);
+}
+
+.step-name {
+  overflow-wrap: anywhere;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.last-time {
+  font-weight: 400;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.choice .actions {
+  margin-top: 8px;
+}
+
+.feel {
+  gap: 16px;
+}
