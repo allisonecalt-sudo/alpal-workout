@@ -457,6 +457,8 @@ test('After: hurt moves count in the skipped line, and say so', async ({ page })
   await page.locator('#done-btn').click();
   await page.getByRole('button', { name: 'Skip' }).click();
   await page.getByRole('button', { name: 'This hurts' }).click();
+  // the skipped one is offered again first (round 2 asks); the hurt one is not
+  await page.getByRole('button', { name: 'Finish' }).click();
   await expect(page.locator('#after-skipped')).toHaveText('2 moves skipped (1 because it hurt)');
 });
 
