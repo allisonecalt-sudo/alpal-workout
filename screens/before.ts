@@ -90,6 +90,7 @@ export function renderBefore(root: HTMLElement, opts: BeforeOptions): () => void
     verb: 'Started',
     at: b.startAt,
     touched: b.startTouched,
+    follow: true,
     onChange: (at, touched) => {
       b.startAt = at;
       b.startTouched = touched;

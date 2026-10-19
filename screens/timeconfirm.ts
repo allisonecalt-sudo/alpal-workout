@@ -11,6 +11,8 @@ export interface TimeConfirmOptions {
   verb: string;
   at: number;
   touched: boolean;
+  /** Until she touches it, follow the clock every minute (the start time does; a finish never). */
+  follow: boolean;
   onChange: (at: number, touched: boolean) => void;
 }
 
@@ -86,7 +88,7 @@ export function mountTimeConfirm(el: HTMLElement, opts: TimeConfirmOptions): () 
 
   draw();
   const timer = window.setInterval(() => {
-    if (touched) return;
+    if (touched || !opts.follow) return;
     set(nowToMinute(), false);
     const line = el.querySelector(`#time-${id}`);
     if (line) line.textContent = `${opts.label} · ${formatClock(at)}. Right?`;
