@@ -264,7 +264,13 @@ async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<v
 
 export async function installNet(page: Page, net: Net): Promise<void> {
   await page.route(
-    (u) => u.hostname !== 'localhost' && u.hostname !== '127.0.0.1',
+    // blob: and data: addresses never leave the phone (a sound kept on the device plays from a
+    // blob: address). Linux WebKit routes them here; they are not network requests, so they pass.
+    (u) =>
+      u.protocol !== 'blob:' &&
+      u.protocol !== 'data:' &&
+      u.hostname !== 'localhost' &&
+      u.hostname !== '127.0.0.1',
     async (route) => {
       const req = route.request();
       const headers = {
