@@ -320,6 +320,7 @@ function parseNote(raw: unknown): NoteRow | null {
     duration_sec: typeof raw.duration_sec === 'number' ? raw.duration_sec : null,
     text: typeof raw.text === 'string' ? raw.text : null,
     read: raw.read === true,
+    context: typeof raw.context === 'string' && raw.context !== '' ? raw.context : null,
   };
 }
 

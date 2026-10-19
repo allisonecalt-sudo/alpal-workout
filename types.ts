@@ -95,6 +95,8 @@ export interface NoteRow {
   text: string | null;
   /** Allison has got it. */
   read: boolean;
+  /** The screen it was sent from ("After Workout A"), when the store has it. */
+  context: string | null;
 }
 
 export interface GuestData {

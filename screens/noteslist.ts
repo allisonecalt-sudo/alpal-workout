@@ -27,7 +27,9 @@ export function notesListHtml(items: ListedNote[]): string {
     .map(
       (n) => `<li class="note-row" data-id="${esc(n.client_id)}" data-status="${n.status}">
         <span class="note-when">${esc(when(n.created_at))}</span>
-        <span class="note-what">${whatHtml(n)}</span>
+        <span class="note-what">${whatHtml(n)}${
+          n.context ? `<span class="note-context" dir="auto">${esc(n.context)}</span>` : ''
+        }</span>
         <span class="note-state">${esc(stateText(n))}</span>
       </li>`
     )

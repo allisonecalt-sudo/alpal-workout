@@ -1587,3 +1587,9 @@ html {
 .feel-row .chip {
   min-width: 64px;
 }
+
+.note-context {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+}

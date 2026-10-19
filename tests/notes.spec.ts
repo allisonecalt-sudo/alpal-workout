@@ -849,6 +849,11 @@ test('a tap-and-stop under half a second says it was too short, not that the mic
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
   await expect(page.locator('#rec-time')).toBeVisible();
+  // the clock says almost nothing has passed (a slow machine must not make this test flaky)
+  await page.evaluate(() => {
+    const real = Date.now.bind(Date);
+    Date.now = () => real() - 5000;
+  });
   await page.locator('#rec-stop').click(); // straight away
   await expect(page.locator('#note-short')).toHaveText(
     'That was too short. Hold on a moment and try again.'
@@ -878,4 +883,53 @@ test('an empty recording (no bytes at all) says the same', async ({ page, net })
   await expect(page.locator('#mic-denied')).toHaveCount(0);
   await page.locator('#write-start').click(); // and Write instead is offered
   await expect(page.locator('#note-text')).toBeVisible();
+});
+
+test('Your notes shows where each note was sent from, small and grey', async ({ page, net }) => {
+  net.guest = makeGuest({
+    program: makeRoundsProgram(),
+    sessions: [],
+    messages: [
+      {
+        client_id: 'cccccccc-0001',
+        kind: 'voice',
+        created_at: '2026-10-19T08:00:00Z',
+        duration_sec: 20,
+        text: null,
+        read: true,
+        context: 'After Workout A · Week 1',
+      },
+      {
+        client_id: 'cccccccc-0002',
+        kind: 'text',
+        created_at: '2026-10-19T07:00:00Z',
+        duration_sec: null,
+        text: 'No context on this one',
+        read: false,
+      },
+    ],
+  });
+  await openUnlocked(page);
+  await expect(page.locator('#greeting')).toBeVisible();
+  net.online = false;
+  await page.locator('#note-btn').click(); // sent from Home, waiting
+  await page.locator('#write-start').click();
+  await page.locator('#note-text').fill('From Home');
+  await page.locator('#note-send').click();
+  await expect(page.locator('#note-done')).toBeVisible();
+  await expect(page.locator('#note-sheet')).toHaveCount(0, { timeout: 5000 });
+  await page.locator('#settings-btn').click();
+  const rows = page.locator('#settings-notes .note-row');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0).locator('.note-context')).toHaveText('Home');
+  await expect(rows.nth(1).locator('.note-context')).toHaveText('After Workout A · Week 1');
+  await expect(rows.nth(2).locator('.note-context')).toHaveCount(0);
+  const style = await rows
+    .nth(1)
+    .locator('.note-context')
+    .evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { size: parseFloat(cs.fontSize), color: cs.color };
+    });
+  expect(style.size).toBeLessThan(15);
 });

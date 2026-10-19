@@ -16,6 +16,7 @@ export interface ListedNote {
   created_at: string;
   duration_sec: number | null;
   text: string | null;
+  context: string | null;
   status: 'got' | 'sent' | 'waiting';
 }
 
@@ -34,6 +35,7 @@ function lite(n: QueuedNote | (MessagePayload & { created_at: string })): Listed
     created_at: n.created_at,
     duration_sec: n.duration_sec ?? null,
     text: n.text ?? null,
+    context: n.context ?? null,
     status: 'waiting',
   };
 }
@@ -122,6 +124,7 @@ export function listNotes(stored: NoteRow[]): ListedNote[] {
     created_at: m.created_at,
     duration_sec: m.duration_sec,
     text: m.text,
+    context: m.context,
     status: m.read ? 'got' : 'sent',
   }));
   const here = sentHere.filter((s) => !have.has(s.client_id));
