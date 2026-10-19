@@ -146,30 +146,40 @@ test('a reload keeps the move she is on', async ({ page }) => {
   await expect(page.locator('#progress-line')).toHaveText('Move 3 of 3');
 });
 
-test('voice reads the move name and first line when Start is tapped, and on each move', async ({
+test('voice is OFF on first open: nothing speaks, and the toggle shows it off', async ({
   page,
 }) => {
   await openUnlocked(page);
   await page.locator('#start-btn').click();
+  await expect(page.locator('#voice-btn')).toHaveAttribute('aria-pressed', 'false');
+  await page.locator('#done-btn').click();
   await page.locator('#done-btn').click();
   const spoken = await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
-  expect(spoken).toEqual(['Move one. Line one', 'Move two. Hold steady']);
+  expect(spoken).toEqual([]);
+  expect(await page.evaluate(() => localStorage.getItem('aw.voice'))).toBeNull();
 });
 
-test('the voice toggle is on by default and remembered', async ({ page }) => {
+test('turning voice on reads each move after that, and the choice is remembered', async ({
+  page,
+}) => {
   await openUnlocked(page);
   await page.locator('#start-btn').click();
   const toggle = page.locator('#voice-btn');
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#done-btn').click();
-  // off stays off on the next move: nothing more is read
-  await expect(page.locator('#voice-btn')).toHaveAttribute('aria-pressed', 'false');
   const spoken = await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
-  expect(spoken).toEqual(['Move one. Line one']);
+  expect(spoken).toEqual(['Move two. Hold steady']);
+  expect(await page.evaluate(() => localStorage.getItem('aw.voice'))).toBe('on');
   await page.reload();
+  await expect(page.locator('#voice-btn')).toHaveAttribute('aria-pressed', 'true');
+  // turning it off again stops it and is remembered too
+  await page.locator('#voice-btn').click();
   await expect(page.locator('#voice-btn')).toHaveAttribute('aria-pressed', 'false');
+  await page.locator('#done-btn').click();
+  const after = await page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
+  expect(after).toEqual([]); // (a reload starts the page's own list afresh)
   expect(await page.evaluate(() => localStorage.getItem('aw.voice'))).toBe('off');
 });
 

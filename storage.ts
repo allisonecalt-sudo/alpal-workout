@@ -46,9 +46,9 @@ export function setCode(code: string | null): void {
   write(K.code, code);
 }
 
-/** Voice is on unless she turned it off. */
+/** Voice is OFF until she turns it on. Nothing ever speaks the first time. */
 export function getVoice(): boolean {
-  return read(K.voice) !== 'off';
+  return read(K.voice) === 'on';
 }
 export function setVoice(on: boolean): void {
   write(K.voice, on ? 'on' : 'off');

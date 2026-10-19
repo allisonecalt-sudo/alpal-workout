@@ -28,7 +28,7 @@ import {
 } from './store';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
 import { isAnswer } from './types';
-import { APP_VERSION } from './version';
+import { APP_VERSION, BUILD_SHORT } from './version';
 import { renderAfter, type AfterAnswers } from './screens/after';
 import { renderHome } from './screens/home';
 import { renderCantOpen, renderLoading, renderNotLoaded } from './screens/notloaded';
@@ -59,7 +59,8 @@ function tellHref(): string | null {
 }
 
 function setHeader(): void {
-  $(document, '#app-version').textContent = APP_VERSION;
+  // her rule: the version tag carries the build date and time too
+  $(document, '#app-version').textContent = `${APP_VERSION} · ${BUILD_SHORT}`;
   const tell = $<HTMLAnchorElement>(document, '#tell');
   const href = tellHref();
   if (href === null) {
