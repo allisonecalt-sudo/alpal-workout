@@ -67,3 +67,34 @@ test('the current program’s pictures are kept for offline use', async ({ page,
     )
     .toBe(true);
 });
+
+test('video preview pictures are never stored by the worker: no opaque entries in any cache', async ({
+  page,
+  net,
+}) => {
+  const program = makeRoundsProgram();
+  (program.workouts as { warmup: Record<string, unknown>[] }[])[0].warmup[0].video =
+    'https://youtu.be/abcdefghijk'; // no images: the preview picture is used
+  net.guest = makeGuest({ program, sessions: [] });
+  await openUnlocked(page);
+  await expect(page.locator('#greeting')).toBeVisible();
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  // open the move so the preview picture is really requested
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.locator('#before-start').click();
+  await expect(page.locator('#frames img')).toHaveCount(1);
+  await page.waitForTimeout(500);
+  const report = await page.evaluate(async () => {
+    const out: { cache: string; url: string; type: string }[] = [];
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      for (const req of await cache.keys()) {
+        const res = await cache.match(req);
+        out.push({ cache: name, url: req.url, type: res ? res.type : 'none' });
+      }
+    }
+    return out;
+  });
+  expect(report.filter((r) => r.type === 'opaque')).toEqual([]);
+  expect(report.filter((r) => r.url.includes('ytimg'))).toEqual([]);
+});

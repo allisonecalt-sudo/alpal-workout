@@ -44,7 +44,6 @@ import { walkPayload } from './walk';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
 import { isAnswer, isNoteEdit, isSession } from './types';
 import { APP_VERSION, BUILD_SHORT } from './version';
-import { thumbnailUrl, youtubeId } from './video';
 import { renderAfter } from './screens/after';
 import { renderBefore } from './screens/before';
 import { leaveCooldown, renderCooldown } from './screens/cooldown';
@@ -738,8 +737,6 @@ function precachePictures(): void {
   for (const w of program.workouts) {
     for (const m of [...w.warmup, ...w.main, ...w.cooldown]) {
       m.images?.forEach((u) => urls.add(u));
-      const id = m.video !== undefined ? youtubeId(m.video) : null;
-      if (id !== null && !m.images?.length) urls.add(thumbnailUrl(id));
     }
   }
   if (urls.size === 0) return;

@@ -81,40 +81,30 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  if (url.hostname === 'i.ytimg.com') {
-    // video preview pictures: kept once seen, so a move still shows one offline
-    event.respondWith(
-      caches.open(RUNTIME).then((cache) =>
-        cache.match(req).then(
-          (hit) =>
-            hit ||
-            fetch(req).then((res) => {
-              cache.put(req, res.clone());
-              return res;
-            })
-        )
-      )
-    );
-    return;
-  }
+  // Video preview pictures (i.ytimg.com) are left to the browser's own HTTP cache: cached here
+  // they would be opaque responses, which browsers count at several MB each.
   if (url.hostname.endsWith('.supabase.co')) {
     event.respondWith(networkFirst(req, RUNTIME));
   }
 });
 
-// The page tells the worker which pictures the current program uses; they are kept for offline
-// (best effort: one that cannot be fetched is skipped).
+// The page tells the worker which of OUR pictures (assets/moves/*) the current program uses; they
+// are kept for offline (best effort: one that cannot be fetched is skipped). Nothing from another
+// origin is ever stored here.
 self.addEventListener('message', (event) => {
   const msg = event.data;
   if (!msg || msg.type !== 'cache-images' || !Array.isArray(msg.urls)) return;
+  const ours = msg.urls.filter(
+    (u) => typeof u === 'string' && !/^[a-z]+:/i.test(u) && !u.startsWith('//')
+  );
   event.waitUntil(
     caches.open(RUNTIME).then((cache) =>
       Promise.all(
-        msg.urls.map((u) =>
+        ours.map((u) =>
           cache.match(u).then((hit) =>
             hit
               ? undefined
-              : fetch(u, { mode: u.startsWith('http') ? 'no-cors' : 'same-origin' })
+              : fetch(u, { mode: 'same-origin' })
                   .then((res) => cache.put(u, res))
                   .catch(() => undefined)
           )
