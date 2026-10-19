@@ -65,11 +65,16 @@ export function mountTimeConfirm(el: HTMLElement, opts: TimeConfirmOptions): () 
       set(at, true);
       draw();
     });
-    el.querySelector<HTMLInputElement>(`#time-${id}-input`)?.addEventListener('change', (e) => {
-      set(withClock(at, (e.target as HTMLInputElement).value), true);
+    // the time picker reports a new value as "input" on some browsers and "change" on others
+    const input = el.querySelector<HTMLInputElement>(`#time-${id}-input`);
+    const onPick = (): void => {
+      if (!input || !/^\d{1,2}:\d{2}$/.test(input.value)) return; // a half-typed time is ignored
+      set(withClock(at, input.value), true);
       const line = el.querySelector(`#time-${id}`);
       if (line) line.textContent = `${opts.label} · ${formatClock(at)}. Right?`;
-    });
+    };
+    input?.addEventListener('input', onPick);
+    input?.addEventListener('change', onPick);
     el.querySelectorAll<HTMLElement>('[data-ago]').forEach((chip) =>
       chip.addEventListener('click', () => {
         editing = false;
