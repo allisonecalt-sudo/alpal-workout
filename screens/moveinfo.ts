@@ -13,6 +13,7 @@ import { COPY } from '../copy';
 import { esc } from '../dom';
 import { explainSource, isMissing, loadExplanation } from '../explain';
 import { formatSeconds } from '../notes';
+import { refreshTip } from '../tips';
 import type { Move } from '../types';
 import { embedUrl, thumbnailUrl, youtubeId } from '../video';
 
@@ -169,6 +170,7 @@ function wireHear(root: HTMLElement, move: Move, suffix: string): void {
       });
       paint();
       label();
+      refreshTip(); // a tip must not sit over the player
       void el.play().catch(() => label()); // a phone may want one more tap: Play is there
     });
   });

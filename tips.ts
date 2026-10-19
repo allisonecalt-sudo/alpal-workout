@@ -98,7 +98,7 @@ function place(spec: TipSpec, target: HTMLElement): boolean {
   document.body.appendChild(tip);
   const h = tip.offsetHeight;
   const left = Math.max(16, Math.min(vw - 16 - width, r.left + r.width / 2 - width / 2));
-  const primary = [...document.querySelectorAll<HTMLElement>('.btn-main, .btn-start')]
+  const primary = [...document.querySelectorAll<HTMLElement>('.btn-main, .btn-start, .player')]
     .filter((b) => b !== target && visible(b))
     .map((b) => b.getBoundingClientRect());
   const hit = (top: number): DOMRect | undefined => {
@@ -144,6 +144,12 @@ function place(spec: TipSpec, target: HTMLElement): boolean {
   });
   current = { id: spec.id, target };
   return true;
+}
+
+/** The screen changed under a tip (the explanation player opened): place it again, clear of it. */
+export function refreshTip(): void {
+  closeTip();
+  consider();
 }
 
 /** Show the next tip that is due on this screen, if none is showing. */

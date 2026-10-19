@@ -335,3 +335,45 @@ test('pausing the workout while the explanation loads means it never starts', as
   await page.waitForTimeout(900);
   expect(await hearPlays(page)).toBe(0);
 });
+
+test('a tip never sits over the open player', async ({ page, net }) => {
+  setup(net);
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('__tipsinit')) {
+      sessionStorage.setItem('__tipsinit', '1');
+      localStorage.removeItem('aw.tips');
+      localStorage.setItem(
+        'aw.tipsSeen',
+        JSON.stringify([
+          'home-week',
+          'home-start',
+          'note-btn',
+          'before-scores',
+          'before-check',
+          'before-lite',
+          'move-first',
+          'move-feel',
+          'move-hurt',
+          'steps',
+          'pause',
+        ])
+      );
+    }
+  });
+  await openUnlocked(page);
+  await startWorkout(page);
+  await expect(page.locator('#tip')).toContainText('Watch how shows a short video');
+  await page.locator('#hear-btn').click();
+  await expect(page.locator('.player')).toBeVisible();
+  const overlap = await page.evaluate(() => {
+    const p = document.querySelector('.player')?.getBoundingClientRect();
+    const t = document.getElementById('tip')?.getBoundingClientRect();
+    if (!p || !t) return false; // no tip showing is fine
+    return t.left < p.right && t.right > p.left && t.top < p.bottom && t.bottom > p.top;
+  });
+  expect(overlap).toBe(false);
+  // and it is still a tip she can dismiss
+  await expect(page.locator('#tip-ok')).toBeVisible();
+  await page.locator('#tip-ok').click();
+  await expect(page.locator('#tip')).toHaveCount(0);
+});
