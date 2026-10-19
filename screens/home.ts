@@ -25,6 +25,10 @@ export interface HomeOptions {
   questionsLeft: number;
   /** Show the safety card open (the first time this program week). */
   safetyOpen: boolean;
+  /** She opened or closed the safety card by hand: remember it for the visit. */
+  onSafetyToggle: (open: boolean) => void;
+  /** A quiet line when the store cannot be reached but the saved copy is shown. */
+  offlineLine: string | null;
   unsentSessions: number;
   unsentAnswers: number;
   /** A one-time note, e.g. a save that was refused. */
@@ -160,6 +164,9 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
          </div>`
       : '';
 
+  const offlineHtml = opts.offlineLine
+    ? `<p class="quiet" id="offline-line">${esc(opts.offlineLine)}</p>`
+    : '';
   const unsent = unsentText(opts.unsentSessions, opts.unsentAnswers);
   const unsentHtml = unsent === '' ? '' : `<p class="quiet" id="unsent-line">${esc(unsent)}</p>`;
   const n = opts.notice;
@@ -189,6 +196,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
       ${card}
       ${questions}
       ${unsentHtml}
+      ${offlineHtml}
       <p class="quiet" id="quiet-line">${esc(COPY.quietLine)}</p>
       <h2>${esc(COPY.yourWeeks)}</h2>
       <div id="past-weeks">${pastHtml}</div>
@@ -209,4 +217,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
     if (move) openSheet(root, move);
   });
   root.querySelector('#questions-btn')?.addEventListener('click', opts.onQuestions);
+  root.querySelector<HTMLDetailsElement>('#safety')?.addEventListener('toggle', (e) => {
+    opts.onSafetyToggle((e.target as HTMLDetailsElement).open);
+  });
 }

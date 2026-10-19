@@ -37,7 +37,7 @@ test('boot with a saved code while throttled: keeps the code, shows Try again', 
   expect(await page.evaluate(() => localStorage.getItem('aw.code'))).toBe(CODE);
 });
 
-test('throttled boot does not fall back to the cached copy or clear anything', async ({
+test('throttled boot with a saved copy shows her program and one quiet line', async ({
   page,
   net,
 }) => {
@@ -45,9 +45,48 @@ test('throttled boot does not fall back to the cached copy or clear anything', a
   await expect(page.locator('#greeting')).toBeVisible(); // a good copy is cached now
   net.loadReply = LOCKED;
   await page.reload();
-  await expect(page.locator('#cant-open')).toBeVisible();
+  await expect(page.locator('#greeting')).toHaveText('Hi Test User 👋');
+  await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
+  await expect(page.locator('#offline-line')).toHaveText(
+    "Can't reach the app right now. Your workouts will send later."
+  );
+  await expect(page.locator('#cant-open')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('aw.code'))).toBe(CODE);
-  expect(await page.evaluate(() => localStorage.getItem('aw.cache'))).not.toBeNull();
+});
+
+test('during the throttle with a saved copy, an answer still queues for later', async ({
+  page,
+  net,
+}) => {
+  net.guest = makeGuest({ questions: QUESTIONS.slice(0, 2), answered: 0 });
+  await openUnlocked(page);
+  await expect(page.locator('#questions-card')).toBeVisible();
+  net.loadReply = LOCKED;
+  net.answerReply = { ok: false, reason: 'locked' };
+  await page.reload();
+  await expect(page.locator('#offline-line')).toBeVisible();
+  await page.getByRole('button', { name: 'Answer a few' }).click();
+  await page.locator('#q-answer').fill('Held answer');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('#toast')).toContainText('Saved on your phone');
+  await page.getByRole('button', { name: 'Done for now' }).click();
+  await expect(page.locator('#unsent-line')).toHaveText(
+    "1 answer not sent yet — it'll send when you're online."
+  );
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('aw.queue') as string))
+  ).toHaveLength(1);
+});
+
+test('throttled boot with no saved copy still shows the wall and keeps the code', async ({
+  page,
+  net,
+}) => {
+  net.loadReply = LOCKED;
+  await openUnlocked(page);
+  await expect(page.locator('#cant-open')).toBeVisible();
+  await expect(page.locator('#offline-line')).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('aw.code'))).toBe(CODE);
 });
 
 test('only a real null clears the saved code', async ({ page, net }) => {

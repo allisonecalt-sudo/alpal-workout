@@ -20,6 +20,7 @@ import {
 import {
   StoreError,
   StoreLocked,
+  getCachedGuest,
   guestLoad,
   guestSaveAnswer,
   guestSaveSession,
@@ -41,8 +42,10 @@ const root = $(document, '#app');
 let code = '';
 let data: GuestData | null = null;
 let flushing = false;
-/** The program week whose safety card was opened in this session. */
-let safetyOpenWeek: number | null = null;
+/** What she did with the safety card this visit; redraws keep it. */
+let safetyChoice: { week: number; open: boolean } | null = null;
+/** The store is throttling but a saved copy is shown: one quiet line says so. */
+let lockedLine = false;
 /** Shown once on the next Home, then cleared. */
 let notice: string | null = null;
 /** The workout she picked from the chips (null = the Up next one). */
@@ -128,10 +131,10 @@ function openQuestions(): Question[] {
 
 /** Open the first time she sees it this program week, closed after that. */
 function safetyOpen(week: number): boolean {
-  if (safetyOpenWeek === week) return true; // stays open for the rest of this visit
+  if (safetyChoice?.week === week) return safetyChoice.open; // her hand wins for the visit
   if (getSafetySeen(week)) return false;
   setSafetySeen(week);
-  safetyOpenWeek = week;
+  safetyChoice = { week, open: true };
   return true;
 }
 
@@ -153,6 +156,10 @@ function showHome(): void {
     chosenId,
     questionsLeft: openQuestions().length,
     safetyOpen: program.safety ? safetyOpen(program.week) : false,
+    onSafetyToggle: (open) => {
+      safetyChoice = { week: program.week, open };
+    },
+    offlineLine: lockedLine ? COPY.lockedOffline : null,
     unsentSessions: waitingSessions.length,
     unsentAnswers: queuedAnswers().length,
     notice: shown,
@@ -295,7 +302,10 @@ async function flush(): Promise<void> {
     if (dropped > 0) notice = COPY.saveRefused;
     if (sent > 0 || dropped > 0) {
       const fresh = await guestLoad(code).catch(() => null);
-      if (fresh) data = fresh;
+      if (fresh) {
+        data = fresh;
+        lockedLine = false;
+      }
       if (root.querySelector('.home')) showHome();
     }
   } finally {
@@ -334,9 +344,19 @@ async function boot(): Promise<void> {
   } catch (e) {
     data = null;
     setHeader();
-    // throttled: keep the saved code and offer a retry
-    if (e instanceof StoreLocked) renderCantOpen(root, () => void boot());
-    else renderNotLoaded(root);
+    if (e instanceof StoreLocked) {
+      // throttled: keep the saved code. With a saved copy, show it (saves still queue).
+      const cached = getCachedGuest(code);
+      if (cached) {
+        data = cached;
+        lockedLine = true;
+        setHeader();
+        route(true);
+        void flush();
+        return;
+      }
+      renderCantOpen(root, () => void boot());
+    } else renderNotLoaded(root);
     return;
   }
   if (data === null) {

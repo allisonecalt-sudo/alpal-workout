@@ -37,5 +37,6 @@ export const COPY = {
   cantOpen: "Can't open right now. Try again in a few minutes.",
   tryAgain: 'Try again',
   safetyTitle: 'Before you start',
+  lockedOffline: "Can't reach the app right now. Your workouts will send later.",
   loading: 'Loading…',
 } as const;

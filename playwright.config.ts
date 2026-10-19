@@ -21,6 +21,15 @@ export default defineConfig({
   },
   projects: [
     { name: 'webkit', use: { ...devices['iPhone 13'] } },
+    // Her phone (iPhone 17): the closest built-in descriptor, with the viewport overridden.
+    {
+      name: 'iphone17',
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 402, height: 874 },
+        screen: { width: 402, height: 874 },
+      },
+    },
     { name: 'chromium', use: { ...devices['Pixel 7'] } },
   ],
   webServer: {

@@ -81,3 +81,36 @@ test('no sideways scroll at 320px, even with a very long word', async ({ page, n
   const box = await page.locator('#safety summary').boundingBox();
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
+
+test('closed by hand stays closed through redraws for the rest of the visit', async ({
+  page,
+  net,
+}) => {
+  withSafety(net);
+  await openUnlocked(page);
+  const card = page.locator('#safety');
+  await expect(card).toHaveJSProperty('open', true);
+  await card.locator('summary').click(); // she closes it
+  await expect(card).toHaveJSProperty('open', false);
+  // a redraw (a chip tap draws Home again) must not reopen it
+  await page.locator('#chips-line .chip').first().click();
+  await expect(page.locator('#safety')).toHaveJSProperty('open', false);
+  await page.locator('#chips-line .chip').first().click();
+  await expect(page.locator('#safety')).toHaveJSProperty('open', false);
+});
+
+test('opened by hand stays open through redraws, even after the first time', async ({
+  page,
+  net,
+}) => {
+  withSafety(net);
+  await openUnlocked(page);
+  await expect(page.locator('#safety')).toHaveJSProperty('open', true); // first visit drawn
+  await page.reload(); // second visit: closed
+  const closed = page.locator('#safety');
+  await expect(closed).toHaveJSProperty('open', false);
+  await closed.locator('summary').click(); // she opens it
+  await expect(closed).toHaveJSProperty('open', true);
+  await page.locator('#chips-line .chip').first().click();
+  await expect(page.locator('#safety')).toHaveJSProperty('open', true);
+});

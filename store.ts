@@ -89,3 +89,9 @@ export async function guestSaveAnswer(code: string, answer: AnswerPayload): Prom
 export function sendQueued(code: string, item: QueueItem): Promise<SaveResult> {
   return isAnswer(item) ? guestSaveAnswer(code, item) : guestSaveSession(code, item);
 }
+
+/** The last good copy kept on the phone, parsed; null when there is none. */
+export function getCachedGuest(code: string): GuestData | null {
+  const cached = getCache(code);
+  return cached ? parseGuest(cached) : null;
+}
