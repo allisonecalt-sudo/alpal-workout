@@ -188,14 +188,21 @@ test('one sound at a time: the video pauses the audio, the audio removes the vid
   await page.locator('#video-btn').click();
   await expect(page.locator('iframe')).toHaveCount(1);
   await expect(page.locator('.player-btn')).toHaveAttribute('aria-label', 'Play');
-  // play again: the video goes
+  // pressing ▶ on the player removes the open video, by itself
   await page.locator('.player-btn').click();
-  // (pressing play on the player does not itself remove the video; a new Hear how does)
-  await page.locator('#hear-btn').click(); // hide the player
-  await page.locator('#hear-btn').click(); // open again
-  await expect(page.locator('.player')).toBeVisible();
+  await expect(page.locator('.player-btn')).toHaveAttribute('aria-label', 'Pause');
   await expect(page.locator('iframe')).toHaveCount(0);
   await expect(page.locator('#video-btn')).toHaveText('▶ Watch how');
+  await expect(page.locator('#video-btn')).toHaveAttribute('aria-expanded', 'false');
+  // and the other way round: the video pauses it again
+  await page.locator('#video-btn').click();
+  await expect(page.locator('iframe')).toHaveCount(1);
+  await expect(page.locator('.player-btn')).toHaveAttribute('aria-label', 'Play');
+  // a new Hear how (hide, then open) removes the video too
+  await page.locator('#hear-btn').click();
+  await page.locator('#hear-btn').click();
+  await expect(page.locator('.player')).toBeVisible();
+  await expect(page.locator('iframe')).toHaveCount(0);
 });
 
 test('leaving the move stops the audio: Done, Back, Pause and Exit', async ({ page, net }) => {

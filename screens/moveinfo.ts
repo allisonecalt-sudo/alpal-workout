@@ -140,6 +140,7 @@ function wireHear(root: HTMLElement, move: Move, suffix: string): void {
       el.addEventListener('timeupdate', paint);
       el.addEventListener('loadedmetadata', paint);
       el.addEventListener('play', label);
+      el.addEventListener('play', closeVideos); // every way of playing removes an open video
       el.addEventListener('pause', label);
       el.addEventListener('ended', () => {
         el.currentTime = 0;
