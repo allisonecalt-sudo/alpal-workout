@@ -4,7 +4,7 @@ import { formatClock, formatDateClock, formatLength } from '../clock';
 import { COPY } from '../copy';
 import { $, esc } from '../dom';
 import { isWalk } from '../program';
-import type { Program, SessionSummary } from '../types';
+import type { Feel, Program, SessionSummary } from '../types';
 
 export interface ListedSession {
   record: SessionSummary;
@@ -63,6 +63,15 @@ export interface SessionListOptions {
   onBack: () => void;
   /** Scroll back to where she was when she returns from a detail page. */
   scrollTo: number;
+}
+
+/** "Right", or "round 1 Right · round 2 Hard" when it was done in several rounds. */
+function feelWords(list: (Feel | null)[]): string {
+  if (list.length === 1 && list[0] !== null) return FEEL_WORD[list[0]];
+  return list
+    .map((f, k) => (f === null ? '' : `round ${k + 1} ${FEEL_WORD[f]}`))
+    .filter((s) => s !== '')
+    .join(' · ');
 }
 
 export function renderSessionList(root: HTMLElement, opts: SessionListOptions): void {
@@ -157,7 +166,7 @@ export function renderSessionDetail(root: HTMLElement, opts: SessionDetailOption
     : '';
   const feels = r.readings.move_feel
     ? Object.entries(r.readings.move_feel)
-        .map(([name, f]) => `<li>${esc(name)}: ${esc(FEEL_WORD[f])}</li>`)
+        .map(([name, list]) => `<li>${esc(name)}: ${esc(feelWords(list))}</li>`)
         .join('')
     : '';
   const moves = r.moves
@@ -177,7 +186,7 @@ export function renderSessionDetail(root: HTMLElement, opts: SessionDetailOption
       ${opts.item.unsent ? `<p class="quiet" id="detail-unsent">${esc(COPY.notSentYet)}</p>` : ''}
       ${lines}
       ${holds ? `<h2>Holds</h2><ul class="d-list" id="detail-holds">${holds}</ul>` : ''}
-      ${feels ? `<h2>How new moves felt</h2><ul class="d-list" id="detail-feels">${feels}</ul>` : ''}
+      ${feels ? `<h2>How each move felt</h2><ul class="d-list" id="detail-feels">${feels}</ul>` : ''}
       ${moves ? `<h2>Moves</h2><ul class="d-list" id="detail-moves">${moves}</ul>` : ''}
       <h2>Note</h2>
       <div id="note-area"></div>

@@ -8,6 +8,8 @@ import { pauseProgress, resumeProgress, type Progress } from '../progress';
 import { cooldownMinutes, groupStretchPairs } from '../steps';
 import { setProgress } from '../storage';
 import type { Workout } from '../types';
+import { feelAt, setFeel } from '../feel';
+import { feelRowHtml, wireFeelRow } from './feelrow';
 import { moveInfoHtml, wireMoveInfo } from './moveinfo';
 import {
   closeExitSheet,
@@ -47,6 +49,7 @@ export function renderCooldown(root: HTMLElement, opts: CooldownOptions): void {
       return `<details class="cd-row">
           <summary><span class="mv-name">${esc(g.name)}</span><span class="mv-amt">${esc(amount)}</span></summary>
           ${moveInfoHtml(first, `-${k}`)}
+          ${feelRowHtml(`feel-row-${k}`, feelAt(progress.moveFeel, g.name, 1))}
         </details>`;
     })
     .join('');
@@ -62,7 +65,13 @@ export function renderCooldown(root: HTMLElement, opts: CooldownOptions): void {
         <button type="button" class="btn btn-soft" id="cooldown-skip">${esc(COPY.skip)}</button>
       </div>
     </section>`;
-  groups.forEach((g, k) => wireMoveInfo(root, g.items[0], `-${k}`));
+  groups.forEach((g, k) => {
+    wireMoveInfo(root, g.items[0], `-${k}`);
+    wireFeelRow(root, `feel-row-${k}`, (value) => {
+      setFeel(progress.moveFeel, g.name, 1, value);
+      setProgress(progress);
+    });
+  });
 
   const showPausedOverlay = (): void =>
     showPaused({

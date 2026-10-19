@@ -1,5 +1,6 @@
 // Reads what the store sends and checks its shape. Anything wrong becomes "no program",
 // which the app shows as the "not loaded" message. It never invents a workout.
+import { asFeelList } from './feel';
 import type {
   Feel,
   GuestData,
@@ -242,10 +243,10 @@ function parseReadings(raw: unknown): Readings {
     }
   }
   if (isObj(raw.move_feel)) {
-    const mf: Record<string, Feel> = {};
+    const mf: Record<string, (Feel | null)[]> = {};
     for (const [name, v] of Object.entries(raw.move_feel)) {
-      const f = parseFeel(v);
-      if (f) mf[name] = f;
+      const list = asFeelList(v, parseFeel);
+      if (list) mf[name] = list;
     }
     if (Object.keys(mf).length > 0) out.move_feel = mf;
   }

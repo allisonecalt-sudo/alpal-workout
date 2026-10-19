@@ -270,6 +270,9 @@ test('Settings: Hide tips, Show tips, and Show tips again', async ({ page, net }
   await page.locator('#tips-again').click();
   await expect(page.locator('#set-tips')).toHaveText('Hide tips');
   expect(await page.evaluate(() => localStorage.getItem('aw.tipsSeen'))).toBeNull();
+  // the Note button's tip is due on any screen (it lives in the header): then Home's own
+  await expect(tip(page)).toContainText('Any time, tap here to send Allison a voice note');
+  await page.locator('#tip-ok').click();
   await page.getByRole('button', { name: '‹ Home' }).click();
   await expect(tip(page)).toContainText('This is your week.');
 });

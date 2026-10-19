@@ -32,7 +32,9 @@ import {
 } from '../steps';
 import { getCardio, getGetReady, getRestOverride, setCardio, setProgress } from '../storage';
 import { formatRemaining, isFinished, newTimer, remainingMs, startTimer } from '../timer';
-import type { Feel, MoveStatus, Program, Workout } from '../types';
+import type { MoveStatus, Program, Workout } from '../types';
+import { feelAt, setFeel } from '../feel';
+import { feelRowHtml, wireFeelRow } from './feelrow';
 import { moveInfoHtml, wireMoveInfo } from './moveinfo';
 import {
   closeExitSheet,
@@ -69,12 +71,6 @@ export function leaveWorkout(): void {
   closeStepSheet();
   closePaused();
 }
-
-const FEELS: { value: Feel; label: string }[] = [
-  { value: 'easy', label: COPY.feelEasy },
-  { value: 'right', label: COPY.feelRight },
-  { value: 'hard', label: COPY.feelHard },
-];
 
 export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
   const { workout, program, progress } = opts;
@@ -151,21 +147,12 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     finishMain();
   };
 
-  /** Does a new or stepped-up move just finish its last round? */
-  const needsFeel = (step: Step, status: MoveStatus): boolean => {
-    if (status !== 'done') return false;
-    if (!step.move.new && !step.move.stepped) return false;
-    return step.part === 'warmup' || step.round === rounds;
-  };
-
   const advance = (status: MoveStatus): void => {
     captureHold();
-    const step = steps[progress.idx];
     progress.statuses[progress.idx] = status;
     const done = progress.idx;
     progress.hold = null;
     progress.rest = null;
-    if (needsFeel(step, status)) progress.feelAsk = step.move.name;
     if (progress.redoing) {
       // doing the skipped steps now: the next one in the list, then the end
       const next = progress.redo.shift();
@@ -183,13 +170,13 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
       }
     }
     save();
-    if (progress.feelAsk === null && progress.idx >= steps.length) return afterLast();
+    if (progress.idx >= steps.length) return afterLast();
     show(!progress.between && progress.rest === null);
   };
 
   const goBack = (): void => {
     captureHold();
-    if (progress.idx === 0 && progress.rest === null && !progress.feelAsk) {
+    if (progress.idx === 0 && progress.rest === null) {
       // the first step has nothing behind it: back goes to the Before screen
       progress.stage = 'before';
       progress.hold = null;
@@ -206,7 +193,6 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     progress.between = false;
     progress.rest = null;
     progress.hold = null;
-    progress.feelAsk = null;
     progress.redoAsk = false;
     progress.redoAsked = false;
     progress.redoing = false;
@@ -221,7 +207,6 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     progress.between = false;
     progress.rest = null;
     progress.hold = null;
-    progress.feelAsk = null;
     progress.redoAsk = false;
     progress.redoing = false;
     save();
@@ -285,35 +270,6 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
       show(true);
     });
     $(root, '#finish-btn').addEventListener('click', () => toAfter(true));
-  };
-
-  /** "How was it?" for a new or stepped-up move, after its last round. */
-  const showFeelAsk = (): void => {
-    const name = progress.feelAsk ?? '';
-    root.innerHTML = `
-      <section class="workout feel">
-        ${runBarHtml(true)}
-        <h1 id="move-feel-title">How was ${esc(name)}?</h1>
-        <div class="chips" id="move-feel">${FEELS.map(
-          (f) =>
-            `<button type="button" class="chip" data-feel="${f.value}">${esc(f.label)}</button>`
-        ).join('')}</div>
-        <button type="button" class="back-link" id="move-feel-skip">${esc(COPY.moveFeelSkip)}</button>
-      </section>`;
-    bar();
-    const done = (): void => {
-      progress.feelAsk = null;
-      save();
-      if (progress.idx >= steps.length) return afterLast();
-      show(!progress.between && progress.rest === null);
-    };
-    $(root, '#move-feel').addEventListener('click', (e) => {
-      const chip = (e.target as HTMLElement).closest<HTMLElement>('button.chip');
-      if (!chip) return;
-      progress.moveFeel[name] = chip.dataset.feel as Feel;
-      done();
-    });
-    $(root, '#move-feel-skip').addEventListener('click', done);
   };
 
   /** After the last step: "2 skipped — do them now?" */
@@ -477,6 +433,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
         ${badges}
         ${moveInfoHtml(move)}
         ${amount}
+        ${feelRowHtml('feel-row', feelAt(progress.moveFeel, move.name, step.round))}
         ${pain}
         <div class="actions">
           <button type="button" class="btn btn-main" id="done-btn">${esc(COPY.done)}</button>
@@ -488,6 +445,10 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
       </section>`;
     bar();
     wireMoveInfo(root, move);
+    wireFeelRow(root, 'feel-row', (value) => {
+      setFeel(progress.moveFeel, move.name, step.round, value);
+      save();
+    });
     $(root, '#done-btn').addEventListener('click', () => advance('done'));
     $(root, '#skip-btn').addEventListener('click', () => {
       toast(COPY.skipped);
@@ -596,8 +557,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
       progress.rest = null; // a rest that ran out while the page was closed is simply over
       save();
     }
-    if (progress.feelAsk) showFeelAsk();
-    else if (progress.redoAsk) showRedoAsk();
+    if (progress.redoAsk) showRedoAsk();
     else if (progress.idx >= steps.length) return afterLast();
     else if (progress.rest) showRest();
     else if (progress.between) showBetween();

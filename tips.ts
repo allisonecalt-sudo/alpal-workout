@@ -29,6 +29,7 @@ export const TIPS: TipSpec[] = [
     when: () => document.getElementById('done-btn') !== null,
   },
   { id: 'move-pills', selector: '#pills', text: COPY.tipPills },
+  { id: 'move-feel', selector: '#feel-row', text: COPY.tipFeel },
   { id: 'move-hurt', selector: '#hurt-btn', text: COPY.tipHurt },
   {
     id: 'move-hold',

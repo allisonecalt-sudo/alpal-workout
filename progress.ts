@@ -1,8 +1,22 @@
 // The workout she is in the middle of, kept on the phone so a reload picks up exactly where she
 // was. Pure helpers (no screen code): creating it, pausing it, and measuring its length.
+import { asFeelList, type MoveFeels } from './feel';
 import type { HoldState } from './hold';
 import { pauseTimer, startTimer, type TimerState } from './timer';
 import type { Feel, MoveStatus, StoppedAt } from './types';
+
+const FEELS: Feel[] = ['easy', 'right', 'hard'];
+
+/** Read the saved feelings; the older shape (one word per move) becomes a one-round list. */
+function normaliseFeels(v: unknown): MoveFeels {
+  const out: MoveFeels = {};
+  if (typeof v !== 'object' || v === null) return out;
+  for (const [name, raw] of Object.entries(v)) {
+    const list = asFeelList(raw, (x) => (FEELS.includes(x as Feel) ? (x as Feel) : null));
+    if (list) out[name] = list;
+  }
+  return out;
+}
 
 export type Stage = 'before' | 'run' | 'cooldown' | 'after';
 
@@ -50,9 +64,8 @@ export interface Progress {
   /** Doing the skipped steps now: the ones still to do. */
   redoing: boolean;
   redo: number[];
-  /** A new or stepped-up move just finished: ask how it felt (the move name). */
-  feelAsk: string | null;
-  moveFeel: Record<string, Feel>;
+  /** How each move felt, per round (see feel.ts). */
+  moveFeel: MoveFeels;
   /** The between-rounds screen is showing (idx is the first step of the next round). */
   between: boolean;
   /** A rest between main moves is running (idx is the move that comes next). */
@@ -99,7 +112,6 @@ export function newProgress(week: number, workoutId: string, now: number): Progr
     redoAsked: false,
     redoing: false,
     redo: [],
-    feelAsk: null,
     moveFeel: {},
     between: false,
     rest: null,
@@ -144,7 +156,7 @@ export function normaliseProgress(raw: unknown): Progress | null {
     statuses: Array.isArray(r.statuses) ? r.statuses : [],
     holds: typeof r.holds === 'object' && r.holds !== null ? r.holds : {},
     choices: typeof r.choices === 'object' && r.choices !== null ? r.choices : {},
-    moveFeel: typeof r.moveFeel === 'object' && r.moveFeel !== null ? r.moveFeel : {},
+    moveFeel: normaliseFeels(r.moveFeel),
     redo: Array.isArray(r.redo) ? r.redo : [],
     pausedRunning: Array.isArray(r.pausedRunning) ? r.pausedRunning : [],
   };

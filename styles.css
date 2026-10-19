@@ -1543,3 +1543,27 @@ button.week-dots .dots {
   margin: 4px 0;
   overflow-wrap: anywhere;
 }
+
+/* How was this one? Easy / Right / Hard: a quiet row */
+.feel-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 4px 0;
+}
+
+.feel-q {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.feel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.feel-row .chip {
+  min-width: 64px;
+}

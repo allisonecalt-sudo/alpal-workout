@@ -140,7 +140,7 @@ export interface Readings {
   holds?: Record<string, number[]>;
   stopped_at?: StoppedAt;
   /** How a new or stepped-up move felt, by move name. */
-  move_feel?: Record<string, Feel>;
+  move_feel?: Record<string, (Feel | null)[]>;
 }
 
 /** What is sent to the store for one finished workout. */
