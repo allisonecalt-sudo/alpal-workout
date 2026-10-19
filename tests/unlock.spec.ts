@@ -113,6 +113,6 @@ test('the header shows the version and the build date and time', async ({ page }
   await page.goto('/');
   // for example "v1.4 · Oct 19 · 08:40"
   await expect(page.locator('#app-version')).toHaveText(
-    /^v1\.4 · [A-Z][a-z]{2} \d{1,2} · \d{2}:\d{2}$/
+    /^v1\.4\.1 · [A-Z][a-z]{2} \d{1,2} · \d{2}:\d{2}$/
   );
 });
