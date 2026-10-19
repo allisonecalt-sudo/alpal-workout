@@ -373,15 +373,25 @@ export async function installDevices(page: Page): Promise<void> {
       mp4: false,
       deny: false,
       recorders: 0,
-      delay: 0,
       empty: false,
+      // While a gate is up, getUserMedia waits for the test to let it through (no timers).
+      gate: null as Promise<void> | null,
+      open: () => {},
+      hold() {
+        mic.gate = new Promise<void>((resolve) => {
+          mic.open = () => {
+            mic.gate = null;
+            resolve();
+          };
+        });
+      },
     };
     w.__mic = mic;
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: {
         getUserMedia: async () => {
-          if (mic.delay) await new Promise((r) => setTimeout(r, mic.delay));
+          if (mic.gate) await mic.gate;
           if (mic.deny) throw new DOMException('denied', 'NotAllowedError');
           mic.opened++;
           return { getTracks: () => [{ stop: () => mic.stopped++ }] };

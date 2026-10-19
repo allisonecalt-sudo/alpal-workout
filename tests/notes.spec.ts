@@ -737,25 +737,37 @@ for (const width of [320, 390, 402, 430]) {
   });
 }
 
-type Mic = { opened: number; stopped: number; recorders: number; delay: number };
+type Mic = {
+  opened: number;
+  stopped: number;
+  recorders: number;
+  hold: () => void;
+  open: () => void;
+};
 const micState = (page: Page): Promise<Mic> =>
   page.evaluate(() => (window as unknown as { __mic: Mic }).__mic);
+/** The microphone does not answer until the test says so. */
+const holdMic = (page: Page): Promise<void> =>
+  page.evaluate(() => (window as unknown as { __mic: Mic }).__mic.hold());
+const openMic = (page: Page): Promise<void> =>
+  page.evaluate(() => (window as unknown as { __mic: Mic }).__mic.open());
+const micCounts = (page: Page): Promise<{ opened: number; stopped: number; recorders: number }> =>
+  page.evaluate(() => {
+    const m = (window as unknown as { __mic: Mic }).__mic;
+    return { opened: m.opened, stopped: m.stopped, recorders: m.recorders };
+  });
 
 test('a double tap on Record opens the microphone once', async ({ page, net }) => {
   setup(net);
   await openUnlocked(page);
-  await page.evaluate(() => {
-    (window as unknown as { __mic: Mic }).__mic.delay = 300;
-  });
+  await holdMic(page); // the phone is still asking while she taps twice
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').dblclick();
+  await openMic(page);
   await expect(page.locator('#rec-time')).toBeVisible();
-  await page.waitForTimeout(500);
-  const mic = await micState(page);
-  expect(mic.opened).toBe(1);
-  expect(mic.recorders).toBe(1);
-  await page.locator('#note-close').click();
-  expect((await micState(page)).stopped).toBe(1);
+  expect(await micCounts(page)).toMatchObject({ opened: 1, recorders: 1 });
+  await page.locator('#note-close').click(); // stops (and asks, or closes if it was too short)
+  await expect.poll(async () => (await micCounts(page)).stopped).toBe(1);
 });
 
 test('Close while the microphone request is still waiting leaves nothing open', async ({
@@ -764,17 +776,14 @@ test('Close while the microphone request is still waiting leaves nothing open', 
 }) => {
   setup(net);
   await openUnlocked(page);
-  await page.evaluate(() => {
-    (window as unknown as { __mic: Mic }).__mic.delay = 500;
-  });
+  await holdMic(page);
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
   await page.locator('#note-close').click(); // the request has not been answered yet
   await expect(page.locator('#note-sheet')).toHaveCount(0);
-  await page.waitForTimeout(1000);
-  const mic = await micState(page);
-  expect(mic.opened).toBe(1);
-  expect(mic.stopped).toBe(mic.opened); // 0 tracks left open
+  await openMic(page); // now the phone answers, to a sheet that is gone
+  await expect.poll(async () => (await micCounts(page)).opened).toBe(1);
+  await expect.poll(async () => (await micCounts(page)).stopped).toBe(1); // 0 tracks left open
   await expect(page.locator('#note-sheet')).toHaveCount(0); // and it did not come back
 });
 
@@ -798,13 +807,12 @@ test('the beeps are back after a recording ends: stopped, closed, or closed whil
   await page.waitForTimeout(650);
   await page.locator('#note-close').click();
   await page.locator('#confirm-discard').click();
-  await page.evaluate(() => {
-    (window as unknown as { __mic: Mic }).__mic.delay = 300;
-  });
+  await holdMic(page);
   await page.locator('#note-btn').click();
   await page.locator('#rec-start').click();
-  await page.locator('#note-close').click();
-  await page.waitForTimeout(600);
+  await page.locator('#note-close').click(); // closed while the phone is still asking
+  await openMic(page);
+  await expect.poll(async () => (await micCounts(page)).stopped).toBe(3);
   // a hold counts down with beeps again
   await startWorkout(page);
   await page.locator('#timer-btn').click();
