@@ -71,9 +71,7 @@ test('with no number in the store the sheet has no WhatsApp link', async ({ page
 test('no program in the store fails loud, with the Tell button', async ({ page, net }) => {
   net.guest = makeGuest({ program: null });
   await openUnlocked(page);
-  await expect(page.locator('#not-loaded')).toHaveText(
-    "Your workout isn't loaded yet. Tell Allison."
-  );
+  await expect(page.locator('#not-loaded')).toHaveText('Your workouts will show up here soon.');
   await expect(page.locator('#note-btn')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
 });
@@ -90,7 +88,10 @@ test('a malformed program also fails loud and never invents a workout', async ({
 test('the store being unreachable with nothing saved fails loud', async ({ page, net }) => {
   net.online = false;
   await openUnlocked(page);
-  await expect(page.locator('#not-loaded')).toBeVisible();
+  await expect(page.locator('#not-loaded')).toHaveText(
+    "Your workout isn't loaded yet. Tell Allison."
+  );
+  await expect(page.locator('#questions-card')).toHaveCount(0);
 });
 
 for (const width of [320, 390, 430]) {

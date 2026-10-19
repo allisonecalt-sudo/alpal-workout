@@ -167,6 +167,15 @@ function safetyOpen(week: number): boolean {
   return true;
 }
 
+/** No program: the soft words and her questions when the store answered; the plain warning when it did not. */
+function showNotLoaded(): void {
+  setGear(true);
+  if (!data) return renderNotLoaded(root);
+  renderNotLoaded(root, {
+    soon: { questionsLeft: openQuestions().length, onQuestions: showQuestions },
+  });
+}
+
 function showHome(): void {
   leaveWorkout();
   leaveWalk();
@@ -175,7 +184,7 @@ function showHome(): void {
   releaseAwake();
   const program = programOf();
   if (!data || !program) {
-    renderNotLoaded(root);
+    showNotLoaded();
     return;
   }
   const shown = notice === null ? undefined : { text: notice, tellHref: tellHref() };
@@ -695,7 +704,7 @@ function saveLeftOpen(progress: Progress): void {
 function route(resume: boolean): void {
   const program = programOf();
   if (!data || !program) {
-    renderNotLoaded(root);
+    showNotLoaded();
     return;
   }
   const progress = getProgress();

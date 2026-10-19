@@ -35,6 +35,7 @@ export const COPY = {
   noteSentWord: 'Sent',
   noteWaiting: 'Not sent yet',
   tellPrefill: 'About my workout app: ',
+  notLoadedSoon: 'Your workouts will show up here soon.',
   notLoaded: "Your workout isn't loaded yet. Tell Allison.",
   quietLine: 'This app is yours. Tell Allison anything you want changed — suggestions welcome.',
   start: 'Start',

@@ -1,11 +1,20 @@
 // Fail loud when the store gave us nothing. Never a blank screen, never a made-up workout.
 import { COPY } from '../copy';
+import { questionsCardHtml } from './home';
 
-export function renderNotLoaded(root: HTMLElement): void {
+export interface NotLoadedOptions {
+  /** The store answered but has no program yet: soft words, and her questions below. */
+  soon?: { questionsLeft: number; onQuestions: () => void };
+}
+
+export function renderNotLoaded(root: HTMLElement, opts: NotLoadedOptions = {}): void {
+  const { soon } = opts;
   root.innerHTML = `
     <section class="card not-loaded">
-      <p id="not-loaded">${COPY.notLoaded}</p>
-    </section>`;
+      <p id="not-loaded">${soon ? COPY.notLoadedSoon : COPY.notLoaded}</p>
+    </section>
+    ${soon ? questionsCardHtml(soon.questionsLeft) : ''}`;
+  if (soon) root.querySelector('#questions-btn')?.addEventListener('click', soon.onQuestions);
 }
 
 export function renderLoading(root: HTMLElement): void {

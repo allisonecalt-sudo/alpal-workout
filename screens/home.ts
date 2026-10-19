@@ -122,6 +122,17 @@ function openSheet(root: HTMLElement, move: Move): void {
   $(sheet, '#sheet-close').addEventListener('click', close);
 }
 
+/** The "Questions from Allison" card (Home, and the screen shown before Week 1). */
+export function questionsCardHtml(left: number): string {
+  return left > 0
+    ? `<div class="card" id="questions-card">
+           <h2>Questions from Allison</h2>
+           <p class="quiet" id="questions-left">${left} left · answer whenever you like</p>
+           <button type="button" class="btn btn-soft" id="questions-btn">Answer a few</button>
+         </div>`
+    : '';
+}
+
 /** Update (or add, or remove) the "not sent yet" line without drawing Home again. */
 export function paintUnsent(root: HTMLElement, text: string): void {
   const home = root.querySelector('.home');
@@ -210,14 +221,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
            <ul>${program.safety.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
          </details>`
       : '';
-  const questions =
-    opts.questionsLeft > 0
-      ? `<div class="card" id="questions-card">
-           <h2>Questions from Allison</h2>
-           <p class="quiet" id="questions-left">${opts.questionsLeft} left · answer whenever you like</p>
-           <button type="button" class="btn btn-soft" id="questions-btn">Answer a few</button>
-         </div>`
-      : '';
+  const questions = questionsCardHtml(opts.questionsLeft);
 
   const offlineHtml = opts.offlineLine
     ? `<p class="quiet" id="offline-line">${esc(opts.offlineLine)}</p>`
