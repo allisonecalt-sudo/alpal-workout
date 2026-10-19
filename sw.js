@@ -81,7 +81,45 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
+  if (url.hostname === 'i.ytimg.com') {
+    // video preview pictures: kept once seen, so a move still shows one offline
+    event.respondWith(
+      caches.open(RUNTIME).then((cache) =>
+        cache.match(req).then(
+          (hit) =>
+            hit ||
+            fetch(req).then((res) => {
+              cache.put(req, res.clone());
+              return res;
+            })
+        )
+      )
+    );
+    return;
+  }
   if (url.hostname.endsWith('.supabase.co')) {
     event.respondWith(networkFirst(req, RUNTIME));
   }
+});
+
+// The page tells the worker which pictures the current program uses; they are kept for offline
+// (best effort: one that cannot be fetched is skipped).
+self.addEventListener('message', (event) => {
+  const msg = event.data;
+  if (!msg || msg.type !== 'cache-images' || !Array.isArray(msg.urls)) return;
+  event.waitUntil(
+    caches.open(RUNTIME).then((cache) =>
+      Promise.all(
+        msg.urls.map((u) =>
+          cache.match(u).then((hit) =>
+            hit
+              ? undefined
+              : fetch(u, { mode: u.startsWith('http') ? 'no-cors' : 'same-origin' })
+                  .then((res) => cache.put(u, res))
+                  .catch(() => undefined)
+          )
+        )
+      )
+    )
+  );
 });

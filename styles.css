@@ -880,3 +880,35 @@ input[type='text'] {
 .settings .chips-wrap .chip-inline {
   min-width: 52px;
 }
+
+/* Pictures: start and end frames above the how-to lines */
+.frames {
+  display: flex;
+  gap: 8px;
+}
+
+.frame {
+  flex: 1;
+  margin: 0;
+  min-width: 0;
+}
+
+.frame img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-radius: 12px;
+  background: var(--soft);
+}
+
+.frame figcaption {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+.frames-thumb .frame {
+  flex: 0 1 60%;
+}

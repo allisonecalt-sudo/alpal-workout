@@ -3,7 +3,7 @@
 import { esc } from '../dom';
 import { stopSpeaking } from '../device';
 import type { Move } from '../types';
-import { embedUrl, youtubeId } from '../video';
+import { embedUrl, thumbnailUrl, youtubeId } from '../video';
 
 function list(items: string[] | undefined): string {
   return items && items.length > 0
@@ -12,6 +12,24 @@ function list(items: string[] | undefined): string {
 }
 
 /** `suffix` keeps the ids apart when several moves are on one page (the cool-down list). */
+/** The pictures for a move: its own two frames, else the video's thumbnail, else nothing. */
+export function framesHtml(move: Move): string {
+  if (move.images && move.images.length > 0) {
+    const labels = ['Start', 'End'];
+    return `<div class="frames" id="frames">${move.images
+      .map(
+        (src, k) =>
+          `<figure class="frame"><img src="${esc(src)}" alt="${labels[k] ?? 'Position'} position" loading="lazy" /><figcaption>${labels[k] ?? ''}</figcaption></figure>`
+      )
+      .join('')}</div>`;
+  }
+  const id = move.video !== undefined ? youtubeId(move.video) : null;
+  if (id !== null) {
+    return `<div class="frames frames-thumb" id="frames"><figure class="frame"><img src="${thumbnailUrl(id)}" alt="Video preview" loading="lazy" /></figure></div>`;
+  }
+  return '';
+}
+
 export function moveInfoHtml(move: Move, suffix = ''): string {
   const how = move.how.map((l) => `<li>${esc(l)}</li>`).join('');
   const hasVideo = move.video !== undefined && youtubeId(move.video) !== null;
@@ -28,11 +46,15 @@ export function moveInfoHtml(move: Move, suffix = ''): string {
     more === ''
       ? ''
       : `<details class="more" id="more${suffix}"><summary>More about this move</summary>${more}</details>`;
-  return `<ul class="how" id="how${suffix}">${how}</ul>${video}${details}`;
+  return `${framesHtml(move)}<ul class="how" id="how${suffix}">${how}</ul>${video}${details}`;
 }
 
 /** Wire the Watch button. The player is created on the first tap and removed on Hide. */
 export function wireMoveInfo(root: HTMLElement, move: Move, suffix = ''): void {
+  // a picture that cannot load is simply left out (no broken-image box, no layout jump)
+  root
+    .querySelectorAll<HTMLImageElement>('.frame img')
+    .forEach((img) => img.addEventListener('error', () => img.closest('.frame')?.remove()));
   const btn = root.querySelector<HTMLButtonElement>(`#video-btn${suffix}`);
   const holder = root.querySelector<HTMLElement>(`#video-holder${suffix}`);
   if (!btn || !holder || move.video === undefined) return;

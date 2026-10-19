@@ -31,6 +31,11 @@ function parseMove(raw: unknown): Move | null {
   if (tips) move.tips = tips;
   const watchOut = strings(raw.watchOut);
   if (watchOut) move.watchOut = watchOut;
+  // pictures: only our own files or https links, at most two
+  const images = strings(raw.images)
+    ?.filter((u) => /^(assets\/|https:\/\/)/.test(u))
+    .slice(0, 2);
+  if (images && images.length > 0) move.images = images;
   return move;
 }
 

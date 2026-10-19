@@ -52,6 +52,10 @@ npm run icons        # redraw the placeholder icons
 
 Browser tests stub every store request; nothing reaches the network. Install the browsers once with `npx playwright install webkit chromium`.
 
+## Pictures
+
+The two-frame pictures in `assets/moves/` come from the public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Unlicense). A move's data names them in `images`; with none, a video's preview picture is used.
+
 ## Versioning
 
 `package.json` `appVersion` is the one source. The build injects it into the visible header tag and into the service worker cache name, so they always match. Bump it on every deploy.

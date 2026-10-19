@@ -40,6 +40,7 @@ import { sessionsThisWeek } from './program';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
 import { isAnswer } from './types';
 import { APP_VERSION, BUILD_SHORT } from './version';
+import { thumbnailUrl, youtubeId } from './video';
 import { renderAfter } from './screens/after';
 import { renderBefore } from './screens/before';
 import { leaveCooldown, renderCooldown } from './screens/cooldown';
@@ -535,6 +536,7 @@ async function boot(): Promise<void> {
   }
   setHeader();
   route(true);
+  precachePictures();
   void flush();
 }
 
@@ -559,6 +561,24 @@ function registerWorker(): void {
 window.addEventListener('online', () => {
   if (code !== '') void flush();
 });
+
+/** Ask the offline worker to keep this program's pictures. Best effort. */
+function precachePictures(): void {
+  const program = programOf();
+  if (!program || !('serviceWorker' in navigator)) return;
+  const urls = new Set<string>();
+  for (const w of program.workouts) {
+    for (const m of [...w.warmup, ...w.main, ...w.cooldown]) {
+      m.images?.forEach((u) => urls.add(u));
+      const id = m.video !== undefined ? youtubeId(m.video) : null;
+      if (id !== null && !m.images?.length) urls.add(thumbnailUrl(id));
+    }
+  }
+  if (urls.size === 0) return;
+  void navigator.serviceWorker.ready
+    .then((reg) => reg.active?.postMessage({ type: 'cache-images', urls: [...urls] }))
+    .catch(() => undefined);
+}
 
 $<HTMLButtonElement>(document, '#settings-btn').addEventListener('click', () => {
   if (data) showSettings();

@@ -11,6 +11,8 @@ export interface Move {
   why?: string;
   tips?: string[];
   watchOut?: string[];
+  /** Up to two pictures: where it starts and where it ends (paths or https links). */
+  images?: string[];
 }
 
 export interface Workout {

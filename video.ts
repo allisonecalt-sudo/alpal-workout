@@ -26,3 +26,8 @@ export function youtubeId(url: string): string | null {
 export function embedUrl(id: string): string {
   return `https://www.youtube-nocookie.com/embed/${id}?playsinline=1&rel=0&modestbranding=1`;
 }
+
+/** The preview picture YouTube keeps for a video. */
+export function thumbnailUrl(id: string): string {
+  return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+}
