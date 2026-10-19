@@ -364,12 +364,13 @@ export async function installDevices(page: Page): Promise<void> {
       },
     });
     // a microphone that can record (the headless browsers have none)
-    const mic = { opened: 0, stopped: 0, mp4: false, deny: false, recorders: 0 };
+    const mic = { opened: 0, stopped: 0, mp4: false, deny: false, recorders: 0, delay: 0 };
     w.__mic = mic;
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: {
         getUserMedia: async () => {
+          if (mic.delay) await new Promise((r) => setTimeout(r, mic.delay));
           if (mic.deny) throw new DOMException('denied', 'NotAllowedError');
           mic.opened++;
           return { getTracks: () => [{ stop: () => mic.stopped++ }] };

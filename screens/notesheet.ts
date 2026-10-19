@@ -41,6 +41,10 @@ let recording: Recording | null = null;
 let recordingUrl: string | null = null;
 let hitLimit = false;
 let draft = '';
+/** Each open of the sheet is its own epoch; a microphone request answered late checks it. */
+let epoch = 0;
+/** The epoch that has a microphone request waiting (so a second tap does not start another). */
+let startingIn = -1;
 
 export function noteSheetOpen(): boolean {
   return document.getElementById(SHEET_ID) !== null;
@@ -61,6 +65,7 @@ function releaseRecording(): void {
 
 /** Close the sheet; whatever was being recorded is dropped and the microphone let go. */
 export function closeNoteSheet(): void {
+  epoch += 1;
   endTicker();
   window.clearTimeout(closer);
   closer = undefined;
@@ -106,13 +111,27 @@ export function openNoteSheet(opts: NoteSheetOptions): void {
   };
 
   const startRecording = async (): Promise<void> => {
+    if (recorder || startingIn === epoch) return; // already recording, or a request is waiting
+    const mine = epoch;
+    startingIn = mine;
     pauseAudio(); // recording pauses an explanation that is playing
+    sheet.querySelector<HTMLButtonElement>('#rec-start')?.setAttribute('disabled', '');
+    let started: ActiveRecorder;
     try {
-      recorder = await startRecorder();
+      started = await startRecorder();
     } catch (e) {
+      if (startingIn === mine) startingIn = -1;
+      if (mine !== epoch) return; // the sheet was closed while it asked
       if (e instanceof MicError) return go('denied');
       throw e;
     }
+    if (startingIn === mine) startingIn = -1;
+    if (mine !== epoch) {
+      started.cancel(); // closed while the phone was asking: let the microphone go at once
+      muteBeeps(false);
+      return;
+    }
+    recorder = started;
     muteBeeps(true);
     hitLimit = false;
     releaseRecording();

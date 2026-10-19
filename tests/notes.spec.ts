@@ -4,6 +4,7 @@ import {
   QUESTIONS,
   expect,
   makeGuest,
+  makeHoldProgram,
   makeRoundsProgram,
   openUnlocked,
   startWorkout,
@@ -680,3 +681,78 @@ for (const width of [320, 390, 402, 430]) {
     expect(await over()).toBeLessThanOrEqual(0);
   });
 }
+
+type Mic = { opened: number; stopped: number; recorders: number; delay: number };
+const micState = (page: Page): Promise<Mic> =>
+  page.evaluate(() => (window as unknown as { __mic: Mic }).__mic);
+
+test('a double tap on Record opens the microphone once', async ({ page, net }) => {
+  setup(net);
+  await openUnlocked(page);
+  await page.evaluate(() => {
+    (window as unknown as { __mic: Mic }).__mic.delay = 300;
+  });
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').dblclick();
+  await expect(page.locator('#rec-time')).toBeVisible();
+  await page.waitForTimeout(500);
+  const mic = await micState(page);
+  expect(mic.opened).toBe(1);
+  expect(mic.recorders).toBe(1);
+  await page.locator('#note-close').click();
+  expect((await micState(page)).stopped).toBe(1);
+});
+
+test('Close while the microphone request is still waiting leaves nothing open', async ({
+  page,
+  net,
+}) => {
+  setup(net);
+  await openUnlocked(page);
+  await page.evaluate(() => {
+    (window as unknown as { __mic: Mic }).__mic.delay = 500;
+  });
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await page.locator('#note-close').click(); // the request has not been answered yet
+  await expect(page.locator('#note-sheet')).toHaveCount(0);
+  await page.waitForTimeout(1000);
+  const mic = await micState(page);
+  expect(mic.opened).toBe(1);
+  expect(mic.stopped).toBe(mic.opened); // 0 tracks left open
+  await expect(page.locator('#note-sheet')).toHaveCount(0); // and it did not come back
+});
+
+test('the beeps are back after a recording ends: stopped, closed, or closed while asking', async ({
+  page,
+  net,
+}) => {
+  net.guest = makeGuest({ program: makeHoldProgram(), sessions: [] });
+  await openUnlocked(page);
+  // record, stop, close; then close in the middle of a recording; then close while asking
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await page.locator('#rec-stop').click();
+  await page.locator('#note-send').click();
+  await expect(page.locator('#note-done')).toBeVisible();
+  await expect(page.locator('#note-sheet')).toHaveCount(0, { timeout: 5000 });
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await expect(page.locator('#rec-time')).toBeVisible();
+  await page.locator('#note-close').click();
+  await page.evaluate(() => {
+    (window as unknown as { __mic: Mic }).__mic.delay = 300;
+  });
+  await page.locator('#note-btn').click();
+  await page.locator('#rec-start').click();
+  await page.locator('#note-close').click();
+  await page.waitForTimeout(600);
+  // a hold counts down with beeps again
+  await startWorkout(page);
+  await page.locator('#timer-btn').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __tones: number[] }).__tones.length), {
+      timeout: 12000,
+    })
+    .toBeGreaterThan(0);
+});
