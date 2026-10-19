@@ -839,3 +839,20 @@ input[type='text'] {
 .cd-row[open] {
   padding-bottom: 8px;
 }
+
+/* Home: left-open card and the Done card */
+.left-open {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.left-open p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.done-card {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}

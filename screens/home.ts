@@ -1,5 +1,6 @@
 // 1b. Home: greeting, this week's dots, Up next (with the other workouts as chips), the
 // questions card, the quiet line, past weeks. Tapping a move opens a read-only sheet.
+import { formatDayClock } from '../clock';
 import { COPY } from '../copy';
 import { $, esc } from '../dom';
 import {
@@ -29,6 +30,13 @@ export interface HomeOptions {
   onSafetyToggle: (open: boolean) => void;
   /** A quiet line when the store cannot be reached but the saved copy is shown. */
   offlineLine: string | null;
+  /** A workout left open for hours: ask what to do with it. */
+  leftOpen: { name: string; startedAt: number } | null;
+  onLeftOpenYes: () => void;
+  onLeftOpenNo: () => void;
+  onLeftOpenKeep: () => void;
+  /** The workout she saved today (the card lasts until midnight). */
+  doneToday: { name: string } | null;
   unsentSessions: number;
   unsentAnswers: number;
   /** A one-time note, e.g. a save that was refused. */
@@ -182,17 +190,32 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
     rows.length === 0
       ? `<p class="quiet">${esc(COPY.noWeeks)}</p>`
       : `<ul class="weeks">${rows.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`;
+  const leftOpenHtml = opts.leftOpen
+    ? `<div class="card left-open" id="left-open">
+         <p id="left-open-text">You left ${esc(opts.leftOpen.name)} open (started ${esc(
+           formatDayClock(opts.leftOpen.startedAt)
+         )}). Did you do it?</p>
+         <button type="button" class="btn btn-main" id="left-open-yes">${esc(COPY.leftOpenYes)}</button>
+         <button type="button" class="btn btn-soft" id="left-open-no">${esc(COPY.leftOpenNo)}</button>
+         <button type="button" class="btn btn-soft" id="left-open-keep">${esc(COPY.leftOpenKeep)}</button>
+       </div>`
+    : '';
+  const doneHtml = opts.doneToday
+    ? `<div class="card done-card" id="done-today">Done ✓ · ${esc(opts.doneToday.name)} · ${doneThisWeek} of ${program.sessionsPerWeek} this week</div>`
+    : '';
   const greeting = data.name === '' ? 'Hi 👋' : `Hi ${esc(data.name)} 👋`;
 
   root.innerHTML = `
     <section class="home">
       ${noticeHtml}
+      ${leftOpenHtml}
       <h1 id="greeting">${greeting}</h1>
       <div class="week-dots" aria-label="This week">
         <div class="dots" id="dots">${dots}</div>
         <p id="week-words">${doneThisWeek} of ${program.sessionsPerWeek} this week</p>
       </div>
       ${safety}
+      ${doneHtml}
       ${card}
       ${questions}
       ${unsentHtml}
@@ -217,6 +240,9 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
     if (move) openSheet(root, move);
   });
   root.querySelector('#questions-btn')?.addEventListener('click', opts.onQuestions);
+  root.querySelector('#left-open-yes')?.addEventListener('click', opts.onLeftOpenYes);
+  root.querySelector('#left-open-no')?.addEventListener('click', opts.onLeftOpenNo);
+  root.querySelector('#left-open-keep')?.addEventListener('click', opts.onLeftOpenKeep);
   root.querySelector<HTMLDetailsElement>('#safety')?.addEventListener('toggle', (e) => {
     opts.onSafetyToggle((e.target as HTMLDetailsElement).open);
   });

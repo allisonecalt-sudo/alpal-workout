@@ -58,5 +58,8 @@ export const COPY = {
   redo: 'Redo',
   cooldownTitle: 'Cool-down',
   doneStretching: 'Done stretching ✓',
+  leftOpenYes: 'Yes, save it',
+  leftOpenNo: 'No, throw it away',
+  leftOpenKeep: 'Keep going',
   loading: 'Loading…',
 } as const;

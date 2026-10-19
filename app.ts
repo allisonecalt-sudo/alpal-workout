@@ -4,12 +4,14 @@ import { COPY } from './copy';
 import { isValidCode, normaliseCode } from './code';
 import { $, toast } from './dom';
 import { keepAwake, releaseAwake, unlockAudio } from './device';
+import { sameDay } from './clock';
 import { endProgress, newProgress, type Progress } from './progress';
 import { buildPayload } from './session';
 import { enqueue, flushQueue, newClientId } from './queue';
-import { buildSteps } from './steps';
+import { buildSteps, stoppedAtOf } from './steps';
 import {
   getCode,
+  getDoneToday,
   getProgress,
   getSafetySeen,
   getQueue,
@@ -156,6 +158,11 @@ function showHome(): void {
   const shown = notice === null ? undefined : { text: notice, tellHref: tellHref() };
   notice = null;
   const waitingSessions = queuedSessions();
+  const left = leftOpenWorkout(program);
+  const done = getDoneToday();
+  const doneWorkout = done ? workoutOf(done.workoutId) : null;
+  const doneCard =
+    done && doneWorkout && sameDay(done.at, Date.now()) ? { name: doneWorkout.name } : null;
   renderHome(root, {
     data,
     program,
@@ -167,6 +174,16 @@ function showHome(): void {
       safetyChoice = { week: program.week, open };
     },
     offlineLine: lockedLine ? COPY.lockedOffline : null,
+    leftOpen: left ? { name: left.name, startedAt: left.progress.startedAt } : null,
+    onLeftOpenYes: () => left && saveLeftOpen(left.progress),
+    onLeftOpenNo: () => {
+      setProgress(null);
+      showHome();
+    },
+    onLeftOpenKeep: () => {
+      if (left) showStage(left.progress, true);
+    },
+    doneToday: doneCard,
     unsentSessions: waitingSessions.length,
     unsentAnswers: queuedAnswers().length,
     notice: shown,
@@ -291,7 +308,7 @@ async function saveSession(progress: Progress): Promise<void> {
     showHome();
     return;
   }
-  const session = buildPayload(progress, workout, program.week, newClientId());
+  const session = buildPayload(progress, workout, progress.week, newClientId());
   // 'sent' = the store took it; 'refused' = it answered ok:false; 'offline' = no answer.
   // A "locked" reply (the throttle) is not a refusal: it waits in the queue and retries.
   let outcome: 'sent' | 'refused' | 'offline' = 'offline';
@@ -375,6 +392,40 @@ async function flush(): Promise<void> {
   }
 }
 
+/** A workout left open for hours (not on the Before screen): offered back, never silently dropped. */
+function leftOpenWorkout(program: Program): { progress: Progress; name: string } | null {
+  const progress = getProgress();
+  if (!progress || progress.week !== program.week || progress.stage === 'before') return null;
+  if (Date.now() - progress.lastActiveAt < STALE_WORKOUT_MS) return null;
+  const workout = workoutOf(progress.workoutId);
+  return workout ? { progress, name: workout.name } : null;
+}
+
+/** "Yes, save it": on to After with the times filled in from when she was last active. */
+function saveLeftOpen(progress: Progress): void {
+  const workout = workoutOf(progress.workoutId);
+  if (!workout) return;
+  if (progress.stage === 'run') {
+    const steps = buildSteps(workout, progress.before.lite);
+    progress.stoppedAt = stoppedAtOf(
+      steps,
+      progress.idx,
+      progress.between,
+      progress.rest !== null,
+      false
+    );
+  } else if (progress.stage === 'cooldown') {
+    progress.stoppedAt = { part: 'cooldown', round: 1, move: null };
+  }
+  if (progress.stage !== 'after') {
+    endProgress(progress, progress.lastActiveAt);
+    progress.endedAt = progress.lastActiveAt;
+    progress.after.endTouched = true; // prefilled from when she was last active; Fix is one tap away
+  }
+  setProgress(progress);
+  showStage(progress, true);
+}
+
 /** Open on the right screen: a workout in progress comes back where it was. */
 function route(resume: boolean): void {
   const program = programOf();
@@ -385,6 +436,9 @@ function route(resume: boolean): void {
   const progress = getProgress();
   if (progress && progress.week === program.week && resume) {
     if (Date.now() - progress.lastActiveAt < STALE_WORKOUT_MS) return showStage(progress, true);
+    // left open for hours: Home asks what to do (the Before screen is simply forgotten)
+    if (progress.stage === 'before') setProgress(null);
+  } else if (progress && progress.week !== program.week) {
     setProgress(null);
   }
   showHome();
