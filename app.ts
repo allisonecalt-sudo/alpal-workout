@@ -18,6 +18,7 @@ import {
   clearPhone,
   getBeeps,
   getDoneToday,
+  getInstallHiddenUntil,
   getWalk,
   getGetReady,
   getRestOverride,
@@ -29,6 +30,7 @@ import {
   setQueue,
   setSafetySeen,
   setDoneToday,
+  setInstallHiddenUntil,
 } from './storage';
 import {
   StoreError,
@@ -45,6 +47,7 @@ import { firstsOf, weeksToShow } from './stats';
 import { walkPayload } from './walk';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
 import { isAnswer, isNoteEdit, isSession } from './types';
+import { isInstalled, listenForInstallPrompt } from './install';
 import { startTips } from './tips';
 import { APP_VERSION, BUILD_SHORT } from './version';
 import { renderAfter } from './screens/after';
@@ -61,6 +64,9 @@ import { closeSettingsSheets, renderSettings } from './screens/settings';
 import { closeNoteSheet, openNoteSheet } from './screens/notesheet';
 import { renderUnlock, showUnlockError } from './screens/unlock';
 import { leaveWorkout, renderWorkout, type RunExit } from './screens/workout';
+
+/** "Not now" on the home-screen card: hidden this long. */
+const INSTALL_HIDE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** A workout untouched for this long is not resumed on its own. */
 const STALE_WORKOUT_MS = 3 * 60 * 60 * 1000;
@@ -231,6 +237,11 @@ function showHome(): void {
     unsentAnswers: queuedAnswers().length,
     unsentNotes: getQueue().filter(isNoteEdit).length,
     unsentMessages: waitingCount(),
+    installCard: !isInstalled() && Date.now() >= getInstallHiddenUntil(),
+    onInstallNotNow: () => {
+      setInstallHiddenUntil(Date.now() + INSTALL_HIDE_MS);
+      showHome();
+    },
     notice: shown,
     onStart: startWorkout,
     onChoose: (id) => {
@@ -845,5 +856,6 @@ $<HTMLButtonElement>(document, '#settings-btn').addEventListener('click', () => 
   if (data) showSettings();
 });
 
+listenForInstallPrompt();
 startTips();
 void boot();

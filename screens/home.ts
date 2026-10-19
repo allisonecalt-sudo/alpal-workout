@@ -1,6 +1,7 @@
 // 1b. Home: greeting, this week's dots, Up next (with the other workouts as chips), the
 // questions card, the quiet line, past weeks. Tapping a move opens a read-only sheet.
 import { stopAudio } from '../audio';
+import { browserKind, installCardHtml, paintInstallButtons } from '../install';
 import { formatDayClock } from '../clock';
 import { COPY } from '../copy';
 import { $, esc } from '../dom';
@@ -47,6 +48,9 @@ export interface HomeOptions {
   unsentNotes: number;
   /** Notes to Allison waiting on the phone. */
   unsentMessages: number;
+  /** Show the "Add to your Home Screen" card under the greeting (not installed, not dismissed). */
+  installCard: boolean;
+  onInstallNotNow: () => void;
   onSessions: () => void;
   onProgress: () => void;
   onReview: () => void;
@@ -268,6 +272,7 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
       ${noticeHtml}
       ${leftOpenHtml}
       <h1 id="greeting">${greeting}</h1>
+      ${opts.installCard ? installCardHtml(browserKind(navigator.userAgent), { notNow: true }) : ''}
       <button type="button" class="week-dots" id="week-btn" aria-label="Weekly review">
         <span class="dots" id="dots">${dots}</span>
         <span id="week-words">${doneThisWeek} of ${program.sessionsPerWeek} this week</span>
@@ -293,6 +298,8 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
       </div>
     </section>`;
 
+  paintInstallButtons(root);
+  root.querySelector('#install-notnow')?.addEventListener('click', opts.onInstallNotNow);
   root.querySelector('#start-btn')?.addEventListener('click', () => {
     if (shown) opts.onStart(shown.id);
   });

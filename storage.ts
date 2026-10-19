@@ -18,6 +18,7 @@ const K = {
   walk: 'aw.walk',
   tips: 'aw.tips',
   tipsSeen: 'aw.tipsSeen',
+  installHidden: 'aw.installHidden',
 } as const;
 
 function read(key: string): string | null {
@@ -120,6 +121,15 @@ export function addTipSeen(id: string): void {
 export function resetTips(): void {
   write(K.tipsSeen, null);
   write(K.tips, 'on');
+}
+
+/** "Not now" on the home-screen card hides it for a while (a time, in ms since 1970). */
+export function getInstallHiddenUntil(): number {
+  const n = Number(read(K.installHidden));
+  return Number.isFinite(n) ? n : 0;
+}
+export function setInstallHiddenUntil(ms: number): void {
+  write(K.installHidden, String(ms));
 }
 
 /** "Use a different code": forget this person's code and everything kept for them. */

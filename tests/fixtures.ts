@@ -323,6 +323,9 @@ export async function installDevices(page: Page): Promise<void> {
     } catch {
       /* no storage */
     }
+    // opened from the home screen by default, so the install steps stay out of the way;
+    // install.spec.ts says otherwise
+    Object.defineProperty(navigator, 'standalone', { configurable: true, value: true });
     w.__osc = 0;
     w.__tones = [] as number[];
     w.__spoken = [] as string[];

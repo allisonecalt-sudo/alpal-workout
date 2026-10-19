@@ -2,6 +2,7 @@
 // Everything is remembered on the phone.
 import { COPY } from '../copy';
 import { $, esc, toast } from '../dom';
+import { browserKind, installCardHtml, paintInstallButtons } from '../install';
 import { closeTip, consider } from '../tips';
 import {
   getBeeps,
@@ -80,6 +81,8 @@ export function renderSettings(root: HTMLElement, opts: SettingsOptions): void {
       )}
       <h2>${esc(COPY.notesTitle)}</h2>
       <div id="settings-notes">${notesListHtml(opts.notes)}</div>
+      <button type="button" class="door" id="install-row" aria-expanded="false"><span>${esc(COPY.settingsInstall)}</span><span aria-hidden="true">›</span></button>
+      <div id="install-holder"></div>
       <h2>${esc(COPY.yourData)}</h2>
       <button type="button" class="btn btn-soft" id="export-btn">${esc(COPY.exportData)}</button>
       <h2>${esc(COPY.about)}</h2>
@@ -93,6 +96,14 @@ export function renderSettings(root: HTMLElement, opts: SettingsOptions): void {
     setBeeps(!getBeeps());
     beeps.setAttribute('aria-pressed', String(getBeeps()));
     beeps.textContent = getBeeps() ? 'On' : 'Off';
+  });
+  $(root, '#install-row').addEventListener('click', () => {
+    const holder = $(root, '#install-holder');
+    const row = $(root, '#install-row');
+    const open = holder.childElementCount > 0;
+    holder.innerHTML = open ? '' : installCardHtml(browserKind(navigator.userAgent));
+    row.setAttribute('aria-expanded', String(!open));
+    paintInstallButtons(root);
   });
   const tipsBtn = $<HTMLButtonElement>(root, '#set-tips');
   tipsBtn.addEventListener('click', () => {
