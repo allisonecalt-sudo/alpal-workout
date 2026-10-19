@@ -143,9 +143,10 @@ test('the flow: warm-up, rounds with a between screen, cool-down, then After and
   await done.click();
   await expect(line).toHaveText('Round 2 of 2 · move 2 of 2');
   await done.click();
-  // the last round has no between screen: straight to the cool-down
-  await expect(line).toHaveText('Cool-down · 1 of 1');
-  await done.click();
+  // the last round has no between screen: straight to the cool-down list
+  await expect(page.locator('#cooldown')).toBeVisible();
+  await expect(line).toHaveText('Cool-down');
+  await page.getByRole('button', { name: 'Done stretching ✓' }).click();
   await expect(page.locator('#after-title')).toBeVisible();
 
   await page.locator('[data-feel="easy"]').click();
@@ -156,6 +157,10 @@ test('the flow: warm-up, rounds with a between screen, cool-down, then After and
   expect(net.saves[0].p_session).toEqual({
     client_id: expect.any(String),
     done_at: expect.any(String),
+    started_at: expect.any(String),
+    duration_sec: expect.any(Number),
+    lite: false,
+    readings: {},
     week: 1,
     workout: 'A',
     moves: [

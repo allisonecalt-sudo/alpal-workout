@@ -7,6 +7,7 @@ import {
   PHONE,
   runWorkout,
   test,
+  startWorkout,
 } from './fixtures';
 
 test('After shows the three answers, all optional', async ({ page }) => {
@@ -30,18 +31,31 @@ test('the check-in label can come from the store', async ({ page, net }) => {
   await expect(page.getByRole('heading', { name: 'Test label today' })).toBeVisible();
 });
 
-test('saving online sends the exact RPC body and returns Home with the dot filled', async ({
+test('saving online sends the exact RPC body, every field, and returns Home with the dot filled', async ({
   page,
   net,
 }) => {
+  net.guest = makeGuest({ program: makeProgram({ checkLabel: 'Test check' }) });
   await openUnlocked(page);
   await expect(page.locator('#week-words')).toHaveText('1 of 3 this week');
   await page.locator('#start-btn').click();
+  await page.locator('#before-body [data-value="6"]').click();
+  await page.locator('#before-mood [data-value="7"]').click();
+  await page.locator('#before-check [data-value="1"]').click();
+  await page.locator('#time-start-fix').click();
+  await page.locator('#time-start-input').fill('07:30');
+  await page.locator('#time-start-ok').click();
+  await page.locator('#before-start').click();
   await page.locator('#done-btn').click(); // Move one: done
   await page.getByRole('button', { name: 'Skip' }).click(); // Move two: skipped
   await page.getByRole('button', { name: 'This hurts' }).click(); // Move three: hurt
+  await page.locator('#after-body [data-value="5"]').click();
+  await page.locator('#after-mood [data-value="8"]').click();
   await page.locator('[data-feel="right"]').click();
-  await page.locator('[data-check="3"]').click();
+  await page.locator('#check-chips [data-value="3"]').click();
+  await page.locator('#time-end-fix').click();
+  await page.locator('#time-end-input').fill('08:10');
+  await page.locator('#time-end-ok').click();
   await page.locator('#note').fill('Test note');
   await page.getByRole('button', { name: 'Save' }).click();
 
@@ -50,9 +64,22 @@ test('saving online sends the exact RPC body and returns Home with the dot fille
   expect(net.saves).toHaveLength(1);
   const call = net.saves[0];
   expect(call.p_code).toBe(CODE);
+  const at = (h: number, m: number): Promise<string> =>
+    page.evaluate(
+      ([hh, mm]) => {
+        const d = new Date();
+        d.setHours(hh, mm, 0, 0);
+        return d.toISOString();
+      },
+      [h, m]
+    );
   expect(call.p_session).toEqual({
     client_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
-    done_at: expect.stringMatching(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/),
+    done_at: await at(8, 10),
+    started_at: await at(7, 30),
+    duration_sec: 40 * 60,
+    lite: false,
+    readings: { before: { body: 6, mood: 7, check: 1 }, after: { body: 5, mood: 8 } },
     week: 1,
     workout: 'A',
     moves: [
@@ -69,6 +96,144 @@ test('saving online sends the exact RPC body and returns Home with the dot fille
   expect(await page.evaluate(() => localStorage.getItem('aw.progress'))).toBeNull();
   await expect(page.locator('#past-weeks li')).toHaveText(['Week 1 · 2 of 3']);
 });
+
+test('After: the title, the summary line and the skipped count', async ({ page, net }) => {
+  await openUnlocked(page);
+  await startWorkout(page);
+  await page.locator('#done-btn').click();
+  await page.getByRole('button', { name: 'Skip' }).click();
+  await page.getByRole('button', { name: 'Skip' }).click();
+  await expect(page.locator('#after-title')).toHaveText('Nice. Week 1 done.');
+  await expect(page.locator('#after-summary')).toHaveText('1 round · 2 of 3 this week');
+  await expect(page.locator('#after-skipped')).toHaveText('2 moves skipped');
+  void net;
+});
+
+test('After: one skipped move is singular, none shows no line', async ({ page }) => {
+  await openUnlocked(page);
+  await startWorkout(page);
+  await page.locator('#done-btn').click();
+  await page.locator('#done-btn').click();
+  await page.getByRole('button', { name: 'Skip' }).click();
+  await expect(page.locator('#after-skipped')).toHaveText('1 move skipped');
+  await page.reload();
+  await expect(page.locator('#after-skipped')).toHaveText('1 move skipped');
+});
+
+test('After: no skipped moves means no line', async ({ page }) => {
+  await openUnlocked(page);
+  await runWorkout(page);
+  await expect(page.locator('#after-skipped')).toHaveCount(0);
+});
+
+test('After: the time line and the About-minutes line', async ({ page }) => {
+  await openUnlocked(page);
+  await page.locator('#start-btn').click();
+  await page.locator('#time-start-fix').click();
+  await page.locator('#time-start-input').fill('07:30');
+  await page.locator('#time-start-ok').click();
+  await page.locator('#before-start').click();
+  await page.getByRole('button', { name: 'Exit' }).click();
+  await page.getByRole('button', { name: 'Log what I did' }).click();
+  await expect(page.locator('#time-end')).toHaveText(/^Finished · \d{1,2}:\d{2}\. Right\?$/);
+  await page.locator('#time-end-fix').click();
+  await page.locator('#time-end-input').fill('08:01');
+  await expect(page.locator('#time-end')).toHaveText('Finished · 8:01. Right?');
+  await expect(page.locator('#after-duration')).toHaveText('About 31 min');
+  await page.locator('#time-end-ok').click();
+  await expect(page.locator('#time-end')).toHaveText('Finished 8:01 ✓');
+  await expect(page.locator('#time-warn')).toHaveText('');
+  // the chips
+  await page.locator('#time-end-fix').click();
+  for (const m of ['5 min ago', '10 min ago', '15 min ago']) {
+    await expect(page.getByRole('button', { name: m, exact: true })).toBeVisible();
+  }
+});
+
+test('After: a finish before the start gets a gentle warning, and it clears when fixed', async ({
+  page,
+}) => {
+  await openUnlocked(page);
+  await page.locator('#start-btn').click();
+  await page.locator('#time-start-fix').click();
+  await page.locator('#time-start-input').fill('09:00');
+  await page.locator('#time-start-ok').click();
+  await page.locator('#before-start').click();
+  await page.getByRole('button', { name: 'Exit' }).click();
+  await page.getByRole('button', { name: 'Log what I did' }).click();
+  await page.locator('#time-end-fix').click();
+  await page.locator('#time-end-input').fill('08:00');
+  await expect(page.locator('#time-warn')).toHaveText("That's before you started. Check the time.");
+  await page.locator('#time-end-input').fill('09:30');
+  await expect(page.locator('#time-warn')).toHaveText('');
+  await expect(page.locator('#after-duration')).toHaveText('About 30 min');
+});
+
+test('After: body, mood, the check, feel and the note survive a reload', async ({ page, net }) => {
+  net.guest = makeGuest({ program: makeProgram({ checkLabel: 'Test check' }) });
+  await openUnlocked(page);
+  await runWorkout(page);
+  await page.locator('#after-body [data-value="4"]').click();
+  await page.locator('#after-mood [data-value="9"]').click();
+  await page.locator('#check-chips [data-value="0"]').click();
+  await page.locator('[data-feel="hard"]').click();
+  await page.locator('#note').fill('A note I typed, 123');
+  await page.locator('#time-end-ok').click();
+  await page.reload();
+  await expect(page.locator('#after-title')).toBeVisible();
+  await expect(page.locator('#note')).toHaveValue('A note I typed, 123');
+  await expect(page.locator('#after-body [aria-pressed="true"]')).toHaveText('4');
+  await expect(page.locator('#after-mood [aria-pressed="true"]')).toHaveText('9');
+  await expect(page.locator('#check-chips [aria-pressed="true"]')).toHaveText('0');
+  await expect(page.locator('[data-feel="hard"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#time-end')).toHaveText(/^Finished \d{1,2}:\d{2} ✓$/);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('#greeting')).toBeVisible();
+  expect(net.saves[0].p_session).toMatchObject({
+    feel: 'hard',
+    check_0_10: 0,
+    note: 'A note I typed, 123',
+    readings: { after: { body: 4, mood: 9 } },
+  });
+});
+
+test('After: a second tap clears body and mood, and nothing is sent for them', async ({
+  page,
+  net,
+}) => {
+  await openUnlocked(page);
+  await runWorkout(page);
+  await page.locator('#after-body [data-value="4"]').click();
+  await page.locator('#after-body [data-value="4"]').click();
+  await expect(page.locator('#after-body [aria-pressed="true"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('#greeting')).toBeVisible();
+  expect(
+    (net.saves[0].p_session as { readings: Record<string, unknown> }).readings.after
+  ).toBeUndefined();
+});
+
+for (const width of [320, 390, 402, 430]) {
+  test(`After has no sideways scroll at ${width}px, and every button is 44px`, async ({
+    page,
+    net,
+  }) => {
+    net.guest = makeGuest({ program: makeProgram({ checkLabel: 'Test check' }) });
+    await page.setViewportSize({ width, height: 844 });
+    await openUnlocked(page);
+    await runWorkout(page);
+    await page.locator('#time-end-fix').click(); // the longest version
+    const over = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(over).toBeLessThanOrEqual(0);
+    for (const b of await page.locator('button').all()) {
+      if (!(await b.isVisible())) continue;
+      const box = await b.boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+  });
+}
 
 test('every answer is optional: empty answers are sent as nulls', async ({ page, net }) => {
   await openUnlocked(page);
@@ -230,7 +395,7 @@ test('a reload on the After screen does not lose the finished workout', async ({
   await openUnlocked(page);
   await runWorkout(page);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Done! 🎉' })).toBeVisible();
+  await expect(page.locator('#after-title')).toBeVisible();
 });
 
 test('a note is sent as plain text, whatever it contains', async ({ page, net }) => {
