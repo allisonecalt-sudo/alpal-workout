@@ -137,3 +137,34 @@ test('Pause is at least 44px, on every workout screen', async ({ page, net }) =>
   await expect(page.locator('#rest-screen')).toBeVisible();
   await check();
 });
+
+for (const width of [320, 390, 402, 430]) {
+  test(`Paused, the Exit sheet and the between screen have no sideways scroll at ${width}px`, async ({
+    page,
+    net,
+  }) => {
+    setup(net);
+    await page.setViewportSize({ width, height: 844 });
+    await openUnlocked(page);
+    await startWorkout(page);
+    const over = (): Promise<number> =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+      );
+    await pause(page);
+    expect(await over()).toBeLessThanOrEqual(0);
+    for (const b of await page.locator('#paused-overlay button').all()) {
+      expect((await b.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+    await page.locator('#paused-overlay').getByRole('button', { name: /Exit/ }).click();
+    expect(await over()).toBeLessThanOrEqual(0);
+    for (const b of await page.locator('#exit-sheet button').all()) {
+      expect((await b.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+    await page.getByRole('button', { name: 'Keep going' }).click();
+    await page.getByRole('button', { name: 'Resume' }).click();
+    for (let k = 0; k < 4; k++) await page.locator('#done-btn').click();
+    await expect(page.locator('#between-title')).toBeVisible();
+    expect(await over()).toBeLessThanOrEqual(0);
+  });
+}
