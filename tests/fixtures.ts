@@ -125,17 +125,26 @@ export function withRest(
   return program;
 }
 
+export interface FakeSession {
+  client_id?: string;
+  done_at: string;
+  started_at?: string | null;
+  duration_sec?: number | null;
+  lite?: boolean;
+  readings?: Record<string, unknown>;
+  moves?: { name: string; part: string; round: number; status: string; option?: string }[];
+  note?: string | null;
+  week: number;
+  workout?: string | null;
+  feel: string | null;
+  check_0_10: number | null;
+}
+
 export interface FakeGuest {
   name: string;
   tell_whatsapp: string | null;
   program: FakeProgram | Record<string, unknown> | null;
-  sessions: {
-    done_at: string;
-    week: number;
-    workout?: string | null;
-    feel: string | null;
-    check_0_10: number | null;
-  }[];
+  sessions: FakeSession[];
   questions: FakeQuestion[];
   answered: number;
 }
@@ -173,6 +182,10 @@ export class Net {
   answerReply: unknown = null;
   /** Video player pages that were requested (the stub answers them with an empty page). */
   frames: string[] = [];
+  /** Note edits that reached the stub. */
+  notes: { p_code: string; p_client_id: string; p_note: string }[] = [];
+  /** What a note edit replies with; null means the normal answer. */
+  noteReply: unknown = null;
   /** Video preview pictures that were requested. */
   thumbs: string[] = [];
   /** Make a save answer slowly (milliseconds). */
@@ -202,6 +215,11 @@ async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<v
     if (body.p_code !== net.code) return fulfill({ ok: false, reason: 'bad_code' });
     net.stored.add(String(body.p_session.client_id));
     return fulfill({ ok: true });
+  }
+  if (url.pathname.endsWith('/rest/v1/rpc/guest_update_note')) {
+    net.notes.push(body);
+    if (net.noteReply) return fulfill(net.noteReply);
+    return fulfill(body.p_code === net.code ? { ok: true } : { ok: false, reason: 'bad code' });
   }
   if (url.pathname.endsWith('/rest/v1/rpc/guest_save_answer')) {
     net.answers.push(body);
