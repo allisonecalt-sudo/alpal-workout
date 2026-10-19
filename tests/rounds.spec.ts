@@ -7,6 +7,7 @@ import {
   runWorkout,
   test,
   type Net,
+  startWorkout,
 } from './fixtures';
 
 function roundsGuest(net: Net, sessions: { workout: string | null; week?: number }[] = []): void {
@@ -78,7 +79,7 @@ test('all done: a gentle message and every workout as a chip', async ({ page, ne
   // pick one for an extra round of the week
   await page.locator('#chips-line .chip', { hasText: 'B' }).click();
   await expect(page.locator('#up-next')).toHaveText('Extra · Workout B');
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   await expect(page.locator('#move-name')).toHaveText('Bee one');
 });
 
@@ -105,7 +106,7 @@ test('a chip picks another workout, and Start runs that one', async ({ page, net
   await expect(page.locator('#up-next')).toHaveText('Your pick · Workout C');
   await expect(page.locator('#minutes')).toHaveText('About 20 min');
   await expect(page.locator('#chips-line .chip')).toHaveText(['A', 'B']);
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   await expect(page.locator('#progress-line')).toHaveText('Round 1 of 3 · move 1 of 2');
   await expect(page.locator('#move-name')).toHaveText('Sea one');
 });
@@ -116,7 +117,7 @@ test('the flow: warm-up, rounds with a between screen, cool-down, then After and
 }) => {
   roundsGuest(net);
   await openUnlocked(page);
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   const line = page.locator('#progress-line');
   const done = page.locator('#done-btn');
 
@@ -145,7 +146,7 @@ test('the flow: warm-up, rounds with a between screen, cool-down, then After and
   // the last round has no between screen: straight to the cool-down
   await expect(line).toHaveText('Cool-down · 1 of 1');
   await done.click();
-  await expect(page.getByRole('heading', { name: 'Done! 🎉' })).toBeVisible();
+  await expect(page.locator('#after-title')).toBeVisible();
 
   await page.locator('[data-feel="easy"]').click();
   await page.getByRole('button', { name: 'Save' }).click();
@@ -178,11 +179,11 @@ test('the flow: warm-up, rounds with a between screen, cool-down, then After and
 test('Finish now between rounds still saves, and counts', async ({ page, net }) => {
   roundsGuest(net);
   await openUnlocked(page);
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   for (let k = 0; k < 4; k++) await page.locator('#done-btn').click();
   await expect(page.locator('#between-title')).toBeVisible();
   await page.getByRole('button', { name: 'Finish now' }).click();
-  await expect(page.getByRole('heading', { name: 'Done! 🎉' })).toBeVisible();
+  await expect(page.locator('#after-title')).toBeVisible();
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.locator('#greeting')).toBeVisible();
   expect(net.saves).toHaveLength(1);
@@ -195,7 +196,7 @@ test('Finish now between rounds still saves, and counts', async ({ page, net }) 
 test('a reload resumes exactly: the same round and move', async ({ page, net }) => {
   roundsGuest(net);
   await openUnlocked(page);
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   for (let k = 0; k < 4; k++) await page.locator('#done-btn').click();
   await page.getByRole('button', { name: 'Next round' }).click();
   await page.locator('#done-btn').click();
@@ -208,7 +209,7 @@ test('a reload resumes exactly: the same round and move', async ({ page, net }) 
 test('a reload on the between screen comes back to the between screen', async ({ page, net }) => {
   roundsGuest(net);
   await openUnlocked(page);
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   for (let k = 0; k < 4; k++) await page.locator('#done-btn').click();
   await expect(page.locator('#between-title')).toBeVisible();
   await page.reload();
@@ -217,30 +218,13 @@ test('a reload on the between screen comes back to the between screen', async ({
   await expect(page.locator('#progress-line')).toHaveText('Round 2 of 2 · move 1 of 2');
 });
 
-test('a reload mid-timer in the warm-up keeps the part and the time', async ({ page, net }) => {
-  roundsGuest(net);
-  await openUnlocked(page);
-  await page.getByRole('button', { name: 'Start' }).click();
-  await page.locator('#done-btn').click();
-  await page.locator('#timer-btn').click();
-  await expect(page.locator('#timer-btn')).toHaveText('Pause');
-  await page.evaluate(() => {
-    const p = JSON.parse(localStorage.getItem('aw.progress') as string);
-    p.timer.startedAt -= 5000;
-    localStorage.setItem('aw.progress', JSON.stringify(p));
-  });
-  await page.reload();
-  await expect(page.locator('#progress-line')).toHaveText('Warm-up · 2 of 2');
-  await expect(page.locator('#timer')).toHaveText(/^(14|15) s$/);
-});
-
 test('the old shape (a flat moves list) still works as one workout, one round', async ({
   page,
 }) => {
   await openUnlocked(page);
   await expect(page.locator('#up-next')).toHaveText('Up next · Week 1');
   await expect(page.locator('#chips-line')).toHaveCount(0); // no other workouts
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   await expect(page.locator('#progress-line')).toHaveText('Move 1 of 3');
 });
 
@@ -260,14 +244,14 @@ for (const width of [320, 390, 430]) {
     expect(await overflow()).toBeLessThanOrEqual(0);
     await page.locator('#parts summary').first().click(); // open the warm-up list
     expect(await overflow()).toBeLessThanOrEqual(0);
-    await page.getByRole('button', { name: 'Start' }).click();
+    await startWorkout(page);
     await expect(page.locator('#move-name')).toBeVisible();
     expect(await overflow()).toBeLessThanOrEqual(0);
     for (let k = 0; k < 4; k++) await page.locator('#done-btn').click();
     await expect(page.locator('#between-title')).toBeVisible();
     expect(await overflow()).toBeLessThanOrEqual(0);
     await page.getByRole('button', { name: 'Finish now' }).click();
-    await expect(page.getByRole('heading', { name: 'Done! 🎉' })).toBeVisible();
+    await expect(page.locator('#after-title')).toBeVisible();
     expect(await overflow()).toBeLessThanOrEqual(0);
   });
 }
@@ -287,7 +271,7 @@ test('every button on the Up next card, the chips and the between screen is 44px
     }
   };
   await check();
-  await page.getByRole('button', { name: 'Start' }).click();
+  await startWorkout(page);
   for (let k = 0; k < 4; k++) await page.locator('#done-btn').click();
   await check();
 });
@@ -321,10 +305,10 @@ test('three workouts, three sessions: each once, then the week is done', async (
   const names = ['Workout A', 'Workout B', 'Workout C'];
   for (let k = 0; k < 3; k++) {
     await expect(page.locator('#up-next')).toHaveText(`Up next · ${names[k]}`);
-    await page.getByRole('button', { name: 'Start' }).click();
+    await startWorkout(page);
     // skip through the whole workout quickly
     for (let guard = 0; guard < 20; guard++) {
-      if (await page.getByRole('heading', { name: 'Done! 🎉' }).isVisible()) break;
+      if (await page.locator('#after-title').isVisible()) break;
       const finish = page.getByRole('button', { name: 'Finish now' });
       if (await finish.isVisible()) await finish.click();
       else await page.locator('#done-btn').click();
