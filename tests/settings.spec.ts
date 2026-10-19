@@ -259,3 +259,91 @@ for (const width of [320, 390, 402, 430]) {
     expect(over2).toBeLessThanOrEqual(0);
   });
 }
+
+async function stubShare(
+  page: import('@playwright/test').Page,
+  canShare: boolean,
+  shareFails: string | null = null
+): Promise<void> {
+  await page.addInitScript(
+    ([can, fail]) => {
+      const w = window as unknown as { __shared: { name: string; type: string; text: string }[] };
+      w.__shared = [];
+      Object.defineProperty(navigator, 'canShare', {
+        configurable: true,
+        value: (d: { files?: File[] }) => can && Array.isArray(d.files) && d.files.length > 0,
+      });
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: async (d: { files: File[] }) => {
+          if (fail) throw new DOMException('x', fail);
+          for (const f of d.files)
+            w.__shared.push({ name: f.name, type: f.type, text: await f.text() });
+        },
+      });
+    },
+    [canShare, shareFails] as const
+  );
+}
+
+test('Export on a phone that can share files opens the Share sheet with the file, and does not download', async ({
+  page,
+}) => {
+  await stubShare(page, true);
+  let downloads = 0;
+  page.on('download', () => (downloads += 1));
+  await openUnlocked(page);
+  await openSettings(page);
+  await page.getByRole('button', { name: 'Export my data' }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __shared: unknown[] }).__shared.length))
+    .toBe(1);
+  const shared = await page.evaluate(
+    () =>
+      (window as unknown as { __shared: { name: string; type: string; text: string }[] })
+        .__shared[0]
+  );
+  expect(shared.name).toMatch(/^my-workouts-\d{4}-\d{2}-\d{2}\.json$/);
+  expect(shared.type).toBe('application/json');
+  expect(JSON.parse(shared.text).app_version).toBe(version);
+  await page.waitForTimeout(400);
+  expect(downloads).toBe(0);
+});
+
+test('Export falls back to a download when files cannot be shared', async ({ page }) => {
+  await stubShare(page, false);
+  await openUnlocked(page);
+  await openSettings(page);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export my data' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/^my-workouts-\d{4}-\d{2}-\d{2}\.json$/);
+  expect(
+    await page.evaluate(() => (window as unknown as { __shared: unknown[] }).__shared)
+  ).toEqual([]);
+});
+
+test('Export falls back to a download when sharing fails, but not when she closes the sheet', async ({
+  page,
+}) => {
+  await stubShare(page, true, 'NotAllowedError');
+  await openUnlocked(page);
+  await openSettings(page);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export my data' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toContain('my-workouts-');
+});
+
+test('closing the Share sheet (cancel) does not start a download', async ({ page }) => {
+  await stubShare(page, true, 'AbortError');
+  let downloads = 0;
+  page.on('download', () => (downloads += 1));
+  await openUnlocked(page);
+  await openSettings(page);
+  await page.getByRole('button', { name: 'Export my data' }).click();
+  await page.waitForTimeout(600);
+  expect(downloads).toBe(0);
+});
