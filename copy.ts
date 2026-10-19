@@ -91,7 +91,7 @@ export const COPY = {
   feelHard: 'Hard',
   checkDefault: 'Check-in',
   checkHint: '0 = nothing to report',
-  noteQuestion: 'Anything to tell Allison?',
+  noteQuestion: "Notes on today's workout (optional)",
   save: 'Save',
   savedLocal: "Saved on your phone. It'll send when you're online.",
   saveRefused: "Couldn't save this one. Tell Allison.",

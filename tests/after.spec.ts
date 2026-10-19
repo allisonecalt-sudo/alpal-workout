@@ -18,7 +18,7 @@ test('After shows the three answers, all optional', async ({ page }) => {
   await expect(page.locator('#check-chips .chip')).toHaveCount(11);
   await expect(page.locator('#check-chips .chip').first()).toHaveText('0');
   await expect(page.locator('#check-chips .chip').last()).toHaveText('10');
-  await expect(page.getByText('Anything to tell Allison?')).toBeVisible();
+  await expect(page.getByText("Notes on today's workout (optional)")).toBeVisible();
   await expect(page.locator('#note')).toHaveAttribute('dir', 'auto');
   // the check-in label is neutral unless the store supplies its own words
   await expect(page.getByRole('heading', { name: 'Check-in' })).toBeVisible();
