@@ -18,7 +18,7 @@ test("Home shows the name, the week dots, today's card and the quiet line", asyn
     'This app is yours. Tell Allison anything you want changed — suggestions welcome.'
   );
   await expect(page.locator('#past-weeks li')).toHaveText(['Week 1 · 1 of 3']);
-  await expect(page.locator('#app-version')).toContainText('v1.2');
+  await expect(page.locator('#app-version')).toContainText('v1.3');
 });
 
 test('past weeks are listed newest first', async ({ page, net }) => {

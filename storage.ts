@@ -11,6 +11,9 @@ const K = {
   cache: 'aw.cache',
   safety: 'aw.safety',
   done: 'aw.done',
+  beeps: 'aw.beeps',
+  rest: 'aw.rest',
+  ready: 'aw.ready',
 } as const;
 
 function read(key: string): string | null {
@@ -45,6 +48,43 @@ export function getCode(): string | null {
 }
 export function setCode(code: string | null): void {
   write(K.code, code);
+}
+
+/** Beeps are on unless she turned them off. */
+export function getBeeps(): boolean {
+  return read(K.beeps) !== 'off';
+}
+export function setBeeps(on: boolean): void {
+  write(K.beeps, on ? 'on' : 'off');
+}
+
+/** Her own rest between moves in seconds, or null to follow the plan. */
+export function getRestOverride(): number | null {
+  const v = read(K.rest);
+  if (v === null || v === 'plan') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+export function setRestOverride(seconds: number | null): void {
+  write(K.rest, seconds === null ? null : String(seconds));
+}
+
+/** The get-ready count before a hold, in seconds (3 unless she changed it). */
+export function getGetReady(): number {
+  const n = Number(read(K.ready));
+  return read(K.ready) !== null && Number.isFinite(n) && n >= 0 ? n : 3;
+}
+export function setGetReady(seconds: number): void {
+  write(K.ready, String(seconds));
+}
+
+/** "Use a different code": forget this person's code and everything kept for them. */
+export function clearPhone(): void {
+  write(K.code, null);
+  write(K.progress, null);
+  write(K.queue, null);
+  write(K.cache, null);
+  write(K.done, null);
 }
 
 /** Voice is OFF until she turns it on. Nothing ever speaks the first time. */

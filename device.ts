@@ -1,6 +1,8 @@
 // Phone features that may or may not exist: beep, voice, keep-awake. Each one is silently
 // skipped when unsupported or blocked.
 
+import { getBeeps } from './storage';
+
 let audioCtx: AudioContext | null = null;
 
 /** Call from a tap, so iOS lets the beep play later. */
@@ -45,14 +47,17 @@ export const GO_HZ = 990;
 export const CHIME_HZ = 523;
 
 export function tick(): void {
+  if (!getBeeps()) return;
   tone(TICK_HZ, 0, 0.12, 0.12);
 }
 
 export function goBeep(): void {
+  if (!getBeeps()) return;
   tone(GO_HZ, 0, 0.3, 0.15);
 }
 
 export function chime(): void {
+  if (!getBeeps()) return;
   tone(CHIME_HZ, 0, 0.25, 0.15);
   tone(CHIME_HZ * 1.5, 0.28, 0.4, 0.15);
 }

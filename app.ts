@@ -8,10 +8,16 @@ import { sameDay } from './clock';
 import { endProgress, newProgress, type Progress } from './progress';
 import { buildPayload } from './session';
 import { enqueue, flushQueue, newClientId } from './queue';
-import { buildSteps, stoppedAtOf } from './steps';
+import { buildExport, downloadText, exportFileName } from './export';
+import { buildSteps, restSecondsOf, stoppedAtOf } from './steps';
 import {
   getCode,
+  clearPhone,
+  getBeeps,
   getDoneToday,
+  getGetReady,
+  getRestOverride,
+  getVoice,
   getProgress,
   getSafetySeen,
   getQueue,
@@ -40,6 +46,7 @@ import { leaveCooldown, renderCooldown } from './screens/cooldown';
 import { renderHome } from './screens/home';
 import { renderCantOpen, renderLoading, renderNotLoaded } from './screens/notloaded';
 import { renderQuestions } from './screens/questions';
+import { closeSettingsSheets, renderSettings } from './screens/settings';
 import { renderUnlock, showUnlockError } from './screens/unlock';
 import { leaveWorkout, renderWorkout, type RunExit } from './screens/workout';
 
@@ -71,6 +78,7 @@ function setHeader(): void {
   $(document, '#app-version').textContent = `${APP_VERSION} · ${BUILD_SHORT}`;
   const tell = $<HTMLAnchorElement>(document, '#tell');
   const href = tellHref();
+  setGear(true);
   if (href === null) {
     tell.hidden = true;
     tell.removeAttribute('href');
@@ -79,6 +87,11 @@ function setHeader(): void {
   tell.textContent = COPY.tellButton;
   tell.href = href;
   tell.hidden = false;
+}
+
+/** The gear shows on Home-level screens, never in the middle of a workout. */
+function setGear(visible: boolean): void {
+  $<HTMLButtonElement>(document, '#settings-btn').hidden = !visible || data === null;
 }
 
 function showUnlock(error?: string): void {
@@ -149,6 +162,8 @@ function safetyOpen(week: number): boolean {
 
 function showHome(): void {
   leaveWorkout();
+  closeSettingsSheets();
+  setGear(true);
   releaseAwake();
   const program = programOf();
   if (!data || !program) {
@@ -221,6 +236,7 @@ let stopTimeLine: (() => void) | null = null;
 function showStage(progress: Progress, resumed: boolean): void {
   stopTimeLine?.();
   stopTimeLine = null;
+  setGear(false);
   leaveWorkout();
   leaveCooldown();
   const program = programOf();
@@ -336,6 +352,44 @@ async function saveSession(progress: Progress): Promise<void> {
   if (outcome !== 'refused') setDoneToday({ workoutId: workout.id, at: Date.now() });
   setProgress(null);
   showHome();
+}
+
+function showSettings(): void {
+  leaveWorkout();
+  const program = programOf();
+  const first = program?.workouts[0];
+  renderSettings(root, {
+    planRest: program && first ? restSecondsOf(first, program) : 0,
+    version: `${APP_VERSION} · ${BUILD_SHORT}`,
+    unsent: getQueue().length,
+    onExport: () => {
+      if (!data) return;
+      const now = Date.now();
+      downloadText(
+        exportFileName(now),
+        buildExport(
+          data,
+          getQueue(),
+          {
+            voice: getVoice(),
+            beeps: getBeeps(),
+            restSeconds: getRestOverride(),
+            getReadySeconds: getGetReady(),
+          },
+          APP_VERSION,
+          now
+        )
+      );
+    },
+    onChangeCode: () => {
+      clearPhone();
+      code = '';
+      chosenId = null;
+      lockedLine = false;
+      showUnlock();
+    },
+    onBack: showHome,
+  });
 }
 
 function showQuestions(): void {
@@ -504,6 +558,10 @@ function registerWorker(): void {
 // Coming back online retries the queue too, not only opening the app.
 window.addEventListener('online', () => {
   if (code !== '') void flush();
+});
+
+$<HTMLButtonElement>(document, '#settings-btn').addEventListener('click', () => {
+  if (data) showSettings();
 });
 
 void boot();

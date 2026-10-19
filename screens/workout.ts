@@ -25,7 +25,7 @@ import {
   stoppedAtOf,
   type Step,
 } from '../steps';
-import { getVoice, setProgress } from '../storage';
+import { getGetReady, getRestOverride, getVoice, setProgress } from '../storage';
 import { formatRemaining, isFinished, newTimer, remainingMs, startTimer } from '../timer';
 import type { MoveStatus, Program, Workout } from '../types';
 import { moveInfoHtml, wireMoveInfo } from './moveinfo';
@@ -67,7 +67,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
   const { workout, program, progress } = opts;
   const steps: Step[] = buildSteps(workout, progress.before.lite);
   const rounds = effectiveRounds(workout, progress.before.lite);
-  const restSec = restSecondsOf(workout, program);
+  const restSec = restSecondsOf(workout, program, getRestOverride());
   let freezeHold = opts.resumed;
 
   const save = (): void => setProgress(progress);
@@ -265,7 +265,7 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     const move = step.move;
     const timed = move.seconds !== undefined;
     if (timed) {
-      if (!progress.hold) progress.hold = newHold(move.seconds ?? 0);
+      if (!progress.hold) progress.hold = newHold(move.seconds ?? 0, getGetReady());
       else if (freezeHold && progress.pausedAt === null) progress.hold = afterReload(progress.hold);
       freezeHold = false;
       save();

@@ -106,13 +106,13 @@ test('a failed unlock does not ask to persist storage', async ({ page }) => {
 
 test('the version tag is shown on every screen', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('#app-version')).toContainText('v1.2');
+  await expect(page.locator('#app-version')).toContainText('v1.3');
 });
 
 test('the header shows the version and the build date and time', async ({ page }) => {
   await page.goto('/');
-  // for example "v1.2 · Oct 19 · 08:40"
+  // for example "v1.3 · Oct 19 · 08:40"
   await expect(page.locator('#app-version')).toHaveText(
-    /^v1\.2 · [A-Z][a-z]{2} \d{1,2} · \d{2}:\d{2}$/
+    /^v1.3 · [A-Z][a-z]{2} \d{1,2} · \d{2}:\d{2}$/
   );
 });

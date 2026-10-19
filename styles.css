@@ -856,3 +856,27 @@ input[type='text'] {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+/* Header: gear and Tell */
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-right .icon-btn[hidden] {
+  display: none;
+}
+
+/* Settings */
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+}
+
+.settings .chips-wrap .chip-inline {
+  min-width: 52px;
+}

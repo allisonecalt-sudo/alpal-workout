@@ -60,7 +60,8 @@ export function restFollows(steps: Step[], idx: number): boolean {
 }
 
 /** Rest seconds for a workout: its own value, else the program's, else none. */
-export function restSecondsOf(w: Workout, p: Program): number {
+export function restSecondsOf(w: Workout, p: Program, override: number | null = null): number {
+  if (override !== null) return override;
   return w.restSeconds ?? p.restSeconds ?? 0;
 }
 
