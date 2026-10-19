@@ -16,6 +16,8 @@ const K = {
   ready: 'aw.ready',
   cardio: 'aw.cardio',
   walk: 'aw.walk',
+  tips: 'aw.tips',
+  tipsSeen: 'aw.tipsSeen',
 } as const;
 
 function read(key: string): string | null {
@@ -95,6 +97,29 @@ export function getCardio(): string | null {
 }
 export function setCardio(label: string): void {
   write(K.cardio, label);
+}
+
+/** First-time tips are on unless she hid them. */
+export function getTipsOn(): boolean {
+  return read(K.tips) !== 'off';
+}
+export function setTipsOn(on: boolean): void {
+  write(K.tips, on ? 'on' : 'off');
+}
+
+/** The ids of the tips she has already seen. */
+export function getTipsSeen(): string[] {
+  const v = readJson<unknown>(K.tipsSeen);
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+}
+export function addTipSeen(id: string): void {
+  const seen = getTipsSeen();
+  if (!seen.includes(id)) write(K.tipsSeen, JSON.stringify([...seen, id]));
+}
+/** "Show tips again": forget what was seen and turn the tips back on. */
+export function resetTips(): void {
+  write(K.tipsSeen, null);
+  write(K.tips, 'on');
 }
 
 /** "Use a different code": forget this person's code and everything kept for them. */

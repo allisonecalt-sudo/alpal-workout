@@ -45,6 +45,7 @@ import { firstsOf, weeksToShow } from './stats';
 import { walkPayload } from './walk';
 import type { AnswerPayload, GuestData, Program, Question, SessionPayload, Workout } from './types';
 import { isAnswer, isNoteEdit, isSession } from './types';
+import { startTips } from './tips';
 import { APP_VERSION, BUILD_SHORT } from './version';
 import { renderAfter } from './screens/after';
 import { renderBefore } from './screens/before';
@@ -812,4 +813,5 @@ $<HTMLButtonElement>(document, '#settings-btn').addEventListener('click', () => 
   if (data) showSettings();
 });
 
+startTips();
 void boot();

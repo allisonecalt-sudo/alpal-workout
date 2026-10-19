@@ -305,6 +305,15 @@ export async function installNet(page: Page, net: Net): Promise<void> {
 export async function installDevices(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const w = window as unknown as Record<string, unknown>;
+    // first-time tips are off by default so they never get in the way; tips.spec.ts turns them on
+    try {
+      if (!sessionStorage.getItem('__tipsdefault')) {
+        sessionStorage.setItem('__tipsdefault', '1');
+        localStorage.setItem('aw.tips', 'off');
+      }
+    } catch {
+      /* no storage */
+    }
     w.__osc = 0;
     w.__tones = [] as number[];
     w.__spoken = [] as string[];

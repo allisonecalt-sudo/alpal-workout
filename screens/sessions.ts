@@ -70,7 +70,7 @@ export function renderSessionList(root: HTMLElement, opts: SessionListOptions): 
   root.innerHTML = `
     <section class="sessions">
       <div class="runbar"><button type="button" class="back-link" id="sessions-back">‹ Home</button></div>
-      <h1>${esc(COPY.sessionsTitle)}</h1>
+      <h1 id="sessions-title">${esc(COPY.sessionsTitle)}</h1>
       ${
         opts.items.length === 0
           ? `<p class="quiet" id="sessions-empty">${esc(COPY.sessionsEmpty)}</p>`

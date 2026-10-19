@@ -1,11 +1,15 @@
 // Settings: beeps, rest, get-ready, export, about, and "use a different code".
 // Everything is remembered on the phone.
 import { COPY } from '../copy';
-import { $, esc } from '../dom';
+import { $, esc, toast } from '../dom';
+import { closeTip } from '../tips';
 import {
   getBeeps,
   getGetReady,
   getRestOverride,
+  getTipsOn,
+  resetTips,
+  setTipsOn,
   setBeeps,
   setGetReady,
   setRestOverride,
@@ -52,6 +56,13 @@ export function renderSettings(root: HTMLElement, opts: SettingsOptions): void {
           getBeeps() ? 'On' : 'Off'
         }</button>
       </div>
+      <div class="set-row">
+        <span>${esc(COPY.tipsRow)}</span>
+        <button type="button" class="chip chip-inline" id="set-tips" aria-pressed="${getTipsOn()}">${
+          getTipsOn() ? esc(COPY.tipsHide) : esc(COPY.tipsShow)
+        }</button>
+      </div>
+      <button type="button" class="btn btn-soft" id="tips-again">${esc(COPY.tipsAgain)}</button>
       <h2>${esc(COPY.restBetween)}</h2>
       ${chips(
         'set-rest',
@@ -82,6 +93,19 @@ export function renderSettings(root: HTMLElement, opts: SettingsOptions): void {
     setBeeps(!getBeeps());
     beeps.setAttribute('aria-pressed', String(getBeeps()));
     beeps.textContent = getBeeps() ? 'On' : 'Off';
+  });
+  const tipsBtn = $<HTMLButtonElement>(root, '#set-tips');
+  tipsBtn.addEventListener('click', () => {
+    setTipsOn(!getTipsOn());
+    tipsBtn.setAttribute('aria-pressed', String(getTipsOn()));
+    tipsBtn.textContent = getTipsOn() ? COPY.tipsHide : COPY.tipsShow;
+    if (!getTipsOn()) closeTip();
+  });
+  $(root, '#tips-again').addEventListener('click', () => {
+    resetTips();
+    tipsBtn.setAttribute('aria-pressed', 'true');
+    tipsBtn.textContent = COPY.tipsHide;
+    toast(COPY.tipsAgainDone);
   });
   const pick = (id: string, apply: (v: string) => void): void => {
     const group = $(root, `#${id}`);

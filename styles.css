@@ -1480,3 +1480,49 @@ button.week-dots .dots {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* First-time tips */
+.tip {
+  position: absolute;
+  z-index: 45;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--main);
+  color: var(--main-text);
+  box-shadow: 0 4px 16px rgba(58, 46, 31, 0.3);
+}
+
+.tip-text {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.tip .tip-ok {
+  min-height: 44px;
+  background: var(--card);
+  color: var(--text);
+}
+
+.tip::before {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 24px);
+  margin-left: -8px;
+  border: 8px solid transparent;
+}
+
+.tip-below::before {
+  top: -16px;
+  border-bottom-color: var(--main);
+}
+
+.tip-above::before {
+  bottom: -16px;
+  border-top-color: var(--main);
+}
+
+.tip-float::before {
+  display: none;
+}

@@ -54,7 +54,7 @@ export function renderProgress(root: HTMLElement, opts: ProgressOptions): void {
     root.innerHTML = `
       <section class="progress">
         <div class="runbar"><button type="button" class="back-link" id="progress-back">‹ Home</button></div>
-        <h1>${esc(COPY.progressTitle)}</h1>
+        <h1 id="progress-title">${esc(COPY.progressTitle)}</h1>
         <div class="card" id="progress-empty">
           <p>${esc(COPY.progressEmpty)}</p>
           <button type="button" class="btn btn-main" id="progress-home">${esc(COPY.progressHome)}</button>
@@ -181,7 +181,7 @@ export function renderProgress(root: HTMLElement, opts: ProgressOptions): void {
   root.innerHTML = `
     <section class="progress">
       <div class="runbar"><button type="button" class="back-link" id="progress-back">‹ Home</button></div>
-      <h1>${esc(COPY.progressTitle)}</h1>
+      <h1 id="progress-title">${esc(COPY.progressTitle)}</h1>
       <div class="card" id="progress-headline">
         <p class="big" id="headline">${esc(headline)}</p>
         <p class="quiet" id="headline-basis">${esc(basis)}</p>
