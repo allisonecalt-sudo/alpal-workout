@@ -1253,9 +1253,9 @@ button.week-dots .dots {
 
 /* Header: the note button replaces Tell Allison. It stays above Paused and the Exit sheet. */
 /* The header stays at the top while the page scrolls, so the note button is always there.
-   (The body must not clip sideways itself, or sticky would stick to the body, not the screen.) */
+   (The body clips sideways with "clip", which is not a scroll box, so sticky still follows the screen.) */
 body {
-  overflow-x: visible;
+  overflow-x: clip;
 }
 
 html {
