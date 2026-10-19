@@ -93,6 +93,38 @@ export function makeRoundsProgram(over: Record<string, unknown> = {}): Record<st
   };
 }
 
+/** One workout with a hold (6 s) and a rep move, one round: quick to run end to end. */
+export function makeHoldProgram(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    week: 1,
+    label: 'Week 1',
+    sessionsPerWeek: 3,
+    restSeconds: 0,
+    workouts: [
+      {
+        id: 'A',
+        name: 'Workout A',
+        minutes: 10,
+        main: [
+          { name: 'Hold one', how: ['Steady'], seconds: 6 },
+          { name: 'Move two', how: ['Easy'], reps: '5 times' },
+        ],
+        rounds: 1,
+      },
+    ],
+    ...over,
+  };
+}
+
+/** Give every workout in a program a rest between main moves. */
+export function withRest(
+  program: Record<string, unknown>,
+  seconds: number
+): Record<string, unknown> {
+  for (const w of program.workouts as Record<string, unknown>[]) w.restSeconds = seconds;
+  return program;
+}
+
 export interface FakeGuest {
   name: string;
   tell_whatsapp: string | null;
@@ -216,6 +248,7 @@ export async function installDevices(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const w = window as unknown as Record<string, unknown>;
     w.__osc = 0;
+    w.__tones = [] as number[];
     w.__spoken = [] as string[];
     w.__locks = 0;
     w.__persist = 0;
@@ -233,13 +266,16 @@ export async function installDevices(page: Page): Promise<void> {
       resume() {}
       createOscillator() {
         (w.__osc as number)++;
-        return {
+        const osc = {
           type: '',
           frequency: { value: 0 },
           connect: (x: unknown) => x,
-          start() {},
+          start() {
+            (w.__tones as number[]).push(osc.frequency.value);
+          },
           stop() {},
         };
+        return osc;
       }
       createGain() {
         return {
@@ -300,10 +336,15 @@ export async function openUnlocked(page: Page): Promise<void> {
 }
 
 /** Home, tap Start, go through all three moves with Done. */
-export async function runWorkout(page: Page): Promise<void> {
+export async function startWorkout(page: Page): Promise<void> {
   await page.locator('#start-btn').click();
+  await page.locator('#before-start').click();
+}
+
+export async function runWorkout(page: Page): Promise<void> {
+  await startWorkout(page);
   await page.locator('#done-btn').click();
   await page.locator('#done-btn').click();
   await page.locator('#done-btn').click();
-  await expect(page.getByRole('heading', { name: 'Done! 🎉' })).toBeVisible();
+  await expect(page.locator('#after-title')).toBeVisible();
 }

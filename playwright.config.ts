@@ -18,6 +18,9 @@ export default defineConfig({
     trace: 'on-first-retry',
     // A worker would sit between the page and the stubbed store; only tests/offline.spec.ts opts in.
     serviceWorkers: 'block',
+    // the browser's own clock zone and language: times on screen are local (9:04), so pin them
+    timezoneId: 'Asia/Jerusalem',
+    locale: 'en-US',
   },
   projects: [
     { name: 'webkit', use: { ...devices['iPhone 13'] } },
