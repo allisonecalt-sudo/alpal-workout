@@ -13,12 +13,16 @@ import {
   setVoice,
 } from '../storage';
 import { stopSpeaking } from '../device';
+import type { ListedNote } from '../notes';
+import { notesListHtml } from './noteslist';
 
 export interface SettingsOptions {
   /** The plan's own rest in seconds (shown on the first rest chip), 0 when none. */
   planRest: number;
   version: string;
   unsent: number;
+  /** Her notes to Allison, newest first. */
+  notes: ListedNote[];
   onExport: () => void;
   onChangeCode: () => void;
   onBack: () => void;
@@ -72,6 +76,8 @@ export function renderSettings(root: HTMLElement, opts: SettingsOptions): void {
         READY_CHOICES.map((s) => ({ value: String(s), label: `${s} s` })),
         String(getGetReady())
       )}
+      <h2>${esc(COPY.notesTitle)}</h2>
+      <div id="settings-notes">${notesListHtml(opts.notes)}</div>
       <h2>${esc(COPY.yourData)}</h2>
       <button type="button" class="btn btn-soft" id="export-btn">${esc(COPY.exportData)}</button>
       <h2>${esc(COPY.about)}</h2>

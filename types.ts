@@ -81,6 +81,18 @@ export interface Question {
   text: string;
 }
 
+/** One note she sent to Allison, as the store lists it. */
+export interface NoteRow {
+  client_id: string;
+  kind: 'voice' | 'text';
+  created_at: string;
+  duration_sec: number | null;
+  /** The first 200 characters of a written note. */
+  text: string | null;
+  /** Allison has got it. */
+  read: boolean;
+}
+
 export interface GuestData {
   name: string;
   tellWhatsapp: string | null;
@@ -93,6 +105,8 @@ export interface GuestData {
   /** Unanswered questions, in order. */
   questions: Question[];
   answered: number;
+  /** Her last 20 notes to Allison. */
+  messages: NoteRow[];
 }
 
 export type Feel = 'easy' | 'right' | 'hard';
@@ -170,6 +184,16 @@ export function isNoteEdit(item: QueueItem): item is NoteEdit {
 
 export function isSession(item: QueueItem): item is SessionPayload {
   return 'done_at' in item;
+}
+
+/** What is sent to the store for one note to Allison. */
+export interface MessagePayload {
+  client_id: string;
+  kind: 'voice' | 'text';
+  text?: string;
+  audio_b64?: string;
+  mime?: string;
+  duration_sec?: number;
 }
 
 export interface SaveResult {

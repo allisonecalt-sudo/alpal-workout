@@ -44,6 +44,8 @@ export interface HomeOptions {
   unsentSessions: number;
   unsentAnswers: number;
   unsentNotes: number;
+  /** Notes to Allison waiting on the phone. */
+  unsentMessages: number;
   onSessions: () => void;
   onProgress: () => void;
   onReview: () => void;
@@ -54,15 +56,21 @@ export interface HomeOptions {
   onQuestions: () => void;
 }
 
-function unsentText(sessions: number, answers: number, notes: number): string {
-  const total = sessions + answers + notes;
+export function unsentText(
+  sessions: number,
+  answers: number,
+  notes: number,
+  messages: number
+): string {
+  const total = sessions + answers + notes + messages;
   if (total === 0) return '';
-  const kinds = [sessions, answers, notes].filter((n) => n > 0).length;
+  const kinds = [sessions, answers, notes, messages].filter((n) => n > 0).length;
   let what: string;
   if (kinds > 1) what = `${total} things`;
   else if (sessions > 0) what = sessions === 1 ? '1 workout' : `${sessions} workouts`;
   else if (answers > 0) what = answers === 1 ? '1 answer' : `${answers} answers`;
-  else what = notes === 1 ? '1 note change' : `${notes} note changes`;
+  else if (notes > 0) what = notes === 1 ? '1 note change' : `${notes} note changes`;
+  else what = messages === 1 ? '1 note' : `${messages} notes`;
   return `${what} not sent yet — it'll send when you're online.`;
 }
 
@@ -112,6 +120,27 @@ function openSheet(root: HTMLElement, move: Move): void {
   };
   document.addEventListener('keydown', onKey);
   $(sheet, '#sheet-close').addEventListener('click', close);
+}
+
+/** Update (or add, or remove) the "not sent yet" line without drawing Home again. */
+export function paintUnsent(root: HTMLElement, text: string): void {
+  const home = root.querySelector('.home');
+  if (!home) return;
+  const line = home.querySelector('#unsent-line');
+  if (text === '') {
+    line?.remove();
+    return;
+  }
+  if (line) {
+    line.textContent = text;
+    return;
+  }
+  const el = document.createElement('p');
+  el.className = 'quiet';
+  el.id = 'unsent-line';
+  el.textContent = text;
+  const anchor = home.querySelector('#offline-line') ?? home.querySelector('#quiet-line');
+  home.insertBefore(el, anchor);
 }
 
 export function renderHome(root: HTMLElement, opts: HomeOptions): void {
@@ -193,7 +222,12 @@ export function renderHome(root: HTMLElement, opts: HomeOptions): void {
   const offlineHtml = opts.offlineLine
     ? `<p class="quiet" id="offline-line">${esc(opts.offlineLine)}</p>`
     : '';
-  const unsent = unsentText(opts.unsentSessions, opts.unsentAnswers, opts.unsentNotes);
+  const unsent = unsentText(
+    opts.unsentSessions,
+    opts.unsentAnswers,
+    opts.unsentNotes,
+    opts.unsentMessages
+  );
   const unsentHtml = unsent === '' ? '' : `<p class="quiet" id="unsent-line">${esc(unsent)}</p>`;
   const n = opts.notice;
   const noticeHtml = n

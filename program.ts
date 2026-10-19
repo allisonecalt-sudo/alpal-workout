@@ -12,6 +12,7 @@ import type {
   WeekInfo,
   Readings,
   MoveStatus,
+  NoteRow,
   Part,
   Workout,
 } from './types';
@@ -302,6 +303,21 @@ function parseQuestion(raw: unknown): Question | null {
 }
 
 /** null means the store did not know the code. */
+function parseNote(raw: unknown): NoteRow | null {
+  if (!isObj(raw)) return null;
+  if (typeof raw.client_id !== 'string' || raw.client_id === '') return null;
+  if (raw.kind !== 'voice' && raw.kind !== 'text') return null;
+  if (typeof raw.created_at !== 'string' || Number.isNaN(Date.parse(raw.created_at))) return null;
+  return {
+    client_id: raw.client_id,
+    kind: raw.kind,
+    created_at: raw.created_at,
+    duration_sec: typeof raw.duration_sec === 'number' ? raw.duration_sec : null,
+    text: typeof raw.text === 'string' ? raw.text : null,
+    read: raw.read === true,
+  };
+}
+
 export function parseGuest(raw: unknown): GuestData | null {
   if (!isObj(raw)) return null;
   const sessions = Array.isArray(raw.sessions)
@@ -317,6 +333,9 @@ export function parseGuest(raw: unknown): GuestData | null {
     raw.next !== undefined && raw.next !== null && activeWeek !== null
       ? parseProgram({ week: activeWeek + 1, data: raw.next })
       : null;
+  const messages = Array.isArray(raw.messages)
+    ? raw.messages.map(parseNote).filter((m): m is NoteRow => m !== null)
+    : [];
   return {
     name: typeof raw.name === 'string' ? raw.name : '',
     tellWhatsapp:
@@ -327,6 +346,7 @@ export function parseGuest(raw: unknown): GuestData | null {
     next,
     questions,
     answered: typeof raw.answered === 'number' ? raw.answered : 0,
+    messages,
   };
 }
 

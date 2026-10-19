@@ -272,7 +272,7 @@ test('every button on the Up next card, the chips and the between screen is 44px
   await openUnlocked(page);
   await page.locator('#parts summary').first().click();
   const check = async (): Promise<void> => {
-    for (const b of await page.locator('button, summary, #tell').all()) {
+    for (const b of await page.locator('button, summary').all()) {
       if (!(await b.isVisible())) continue;
       const box = await b.boundingBox();
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);

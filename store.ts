@@ -4,7 +4,14 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
 import { parseGuest } from './program';
 import { getCache, setCache } from './storage';
-import type { AnswerPayload, GuestData, QueueItem, SaveResult, SessionPayload } from './types';
+import type {
+  AnswerPayload,
+  GuestData,
+  MessagePayload,
+  QueueItem,
+  SaveResult,
+  SessionPayload,
+} from './types';
 import { isAnswer, isNoteEdit } from './types';
 
 // The schema the two functions live in. Sent as a profile header only when it is not public.
@@ -83,6 +90,11 @@ export async function guestSaveSession(code: string, session: SessionPayload): P
 /** Send one answer. Throws StoreError when offline (the caller queues it). */
 export async function guestSaveAnswer(code: string, answer: AnswerPayload): Promise<SaveResult> {
   return parseSave(await rpc('guest_save_answer', { p_code: code, p_answer: answer }));
+}
+
+/** Send one note to Allison (voice or written). Throws StoreError when offline. */
+export async function guestSaveMessage(code: string, msg: MessagePayload): Promise<SaveResult> {
+  return parseSave(await rpc('guest_save_message', { p_code: code, p_msg: msg }));
 }
 
 /** Change the note of a saved session. Throws StoreError when offline (the caller queues it). */

@@ -1250,3 +1250,179 @@ button.week-dots .dots {
 .walk .timer {
   margin: 8px 0;
 }
+
+/* Header: the note button replaces Tell Allison. It stays above Paused and the Exit sheet. */
+.top {
+  position: relative;
+  z-index: 55;
+}
+
+.app-version {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-right {
+  flex: none;
+}
+
+.note-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.note-btn[hidden] {
+  display: none;
+}
+
+/* The note sheet: above everything. */
+.note-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(58, 46, 31, 0.45);
+}
+
+.note-card {
+  width: 100%;
+  max-width: 520px;
+  max-height: 92vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 16px calc(var(--safe-bottom) + 16px);
+  border-radius: 20px 20px 0 0;
+  background: var(--card);
+}
+
+.note-card .exit-title {
+  margin: 0;
+}
+
+.note-card .quiet,
+.note-card p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.note-big {
+  min-height: 64px;
+  font-size: 1.15rem;
+}
+
+.note-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.note-wa {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.note-close {
+  align-self: center;
+}
+
+.rec-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 72px;
+}
+
+.rec-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: rec-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes rec-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rec-dot {
+    animation: none;
+  }
+}
+
+.rec-time {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.note-done {
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  padding: 24px 0;
+}
+
+/* Your notes */
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.note-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.note-when {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.note-what {
+  flex: 1 1 8em;
+  min-width: 0;
+}
+
+.note-state {
+  color: var(--muted);
+  font-size: 0.85rem;
+}

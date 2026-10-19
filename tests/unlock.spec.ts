@@ -15,8 +15,8 @@ test('first open asks for the code, with the right words and an iOS-safe input',
   expect(size).toBeGreaterThanOrEqual(16);
   // nothing is asked of the store before a code is typed
   expect(net.loads).toEqual([]);
-  // the tell button is not shown before unlock
-  await expect(page.locator('#tell')).toBeHidden();
+  // the note button is not shown before unlock
+  await expect(page.locator('#note-btn')).toBeHidden();
 });
 
 test('a good code opens Home and is remembered', async ({ page, net }) => {

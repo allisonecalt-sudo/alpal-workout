@@ -5,6 +5,8 @@ import { isValidCode, normaliseCode } from './code';
 import { $, toast } from './dom';
 import { keepAwake, releaseAwake, unlockAudio } from './device';
 import { sameDay } from './clock';
+import { idbClearAll } from './idb';
+import { flushNotes, forgetNotes, listNotes, refreshWaiting, waitingCount } from './notes';
 import { endProgress, newProgress, type Progress } from './progress';
 import { buildPayload, recordOfPayload } from './session';
 import { enqueue, flushQueue, newClientId } from './queue';
@@ -47,7 +49,7 @@ import { APP_VERSION, BUILD_SHORT } from './version';
 import { renderAfter } from './screens/after';
 import { renderBefore } from './screens/before';
 import { leaveCooldown, renderCooldown } from './screens/cooldown';
-import { renderHome } from './screens/home';
+import { paintUnsent, renderHome, unsentText } from './screens/home';
 import { renderCantOpen, renderLoading, renderNotLoaded } from './screens/notloaded';
 import { renderProgress } from './screens/progress';
 import { leaveWalk, renderWalk } from './screens/walk';
@@ -55,6 +57,7 @@ import { renderQuestions } from './screens/questions';
 import { renderReview } from './screens/review';
 import { renderSessionDetail, renderSessionList, type ListedSession } from './screens/sessions';
 import { closeSettingsSheets, renderSettings } from './screens/settings';
+import { closeNoteSheet, openNoteSheet } from './screens/notesheet';
 import { renderUnlock, showUnlockError } from './screens/unlock';
 import { leaveWorkout, renderWorkout, type RunExit } from './screens/workout';
 
@@ -84,17 +87,11 @@ function tellHref(): string | null {
 function setHeader(): void {
   // her rule: the version tag carries the build date and time too
   $(document, '#app-version').textContent = `${APP_VERSION} · ${BUILD_SHORT}`;
-  const tell = $<HTMLAnchorElement>(document, '#tell');
-  const href = tellHref();
+  const note = $<HTMLButtonElement>(document, '#note-btn');
   setGear(true);
-  if (href === null) {
-    tell.hidden = true;
-    tell.removeAttribute('href');
-    return;
-  }
-  tell.textContent = COPY.tellButton;
-  tell.href = href;
-  tell.hidden = false;
+  note.textContent = COPY.noteButton;
+  // the note button is on every screen once a code is in (never on the unlock screen)
+  note.hidden = code === '';
 }
 
 /** The gear shows on Home-level screens, never in the middle of a workout. */
@@ -104,6 +101,8 @@ function setGear(visible: boolean): void {
 
 function showUnlock(error?: string): void {
   leaveWorkout();
+  closeNoteSheet();
+  code = '';
   data = null;
   setHeader();
   renderUnlock(root, {
@@ -127,7 +126,7 @@ function showUnlock(error?: string): void {
         data = loaded;
         setHeader();
         route(false);
-        void flush();
+        void flushAll();
       } catch (e) {
         if (e instanceof StoreLocked) showUnlockError(root, COPY.unlockLocked);
         else if (e instanceof StoreError) showUnlockError(root, COPY.unlockOffline);
@@ -216,6 +215,7 @@ function showHome(): void {
     unsentSessions: waitingSessions.length,
     unsentAnswers: queuedAnswers().length,
     unsentNotes: getQueue().filter(isNoteEdit).length,
+    unsentMessages: waitingCount(),
     notice: shown,
     onStart: startWorkout,
     onChoose: (id) => {
@@ -530,7 +530,8 @@ function showSettings(): void {
   renderSettings(root, {
     planRest: program && first ? restSecondsOf(first, program) : 0,
     version: `${APP_VERSION} · ${BUILD_SHORT}`,
-    unsent: getQueue().length,
+    unsent: getQueue().length + waitingCount(),
+    notes: listNotes(data?.messages ?? []),
     onExport: () => {
       if (!data) return;
       const now = Date.now();
@@ -552,6 +553,8 @@ function showSettings(): void {
     },
     onChangeCode: () => {
       clearPhone();
+      forgetNotes();
+      void idbClearAll();
       code = '';
       chosenId = null;
       lockedLine = false;
@@ -594,7 +597,7 @@ async function saveAnswer(q: Question, answer: string): Promise<'saved' | 'refus
  * comes back online. One flush at a time; a request that arrives mid-flush is covered because
  * the loop re-reads the queue until nothing untried is left.
  */
-async function flush(): Promise<void> {
+async function flushOne(): Promise<void> {
   if (flushing || getQueue().length === 0) return;
   flushing = true;
   try {
@@ -613,6 +616,46 @@ async function flush(): Promise<void> {
   } finally {
     flushing = false;
   }
+}
+
+let flushingNotes = false;
+
+/** Redraw Home's "not sent yet" line in place (a full redraw would drop a one-time notice). */
+function syncUnsent(): void {
+  paintUnsent(
+    root,
+    unsentText(
+      queuedSessions().length,
+      queuedAnswers().length,
+      getQueue().filter(isNoteEdit).length,
+      waitingCount()
+    )
+  );
+}
+
+/** Send the notes waiting in IndexedDB. Same rules as the queue: unreachable or throttled waits. */
+async function flushMessages(): Promise<void> {
+  if (flushingNotes || code === '') return;
+  flushingNotes = true;
+  try {
+    await refreshWaiting();
+    syncUnsent();
+    if (waitingCount() === 0) return;
+    const { sent, dropped } = await flushNotes(code);
+    if (dropped > 0) toast(COPY.noteRefused, 5000);
+    syncUnsent();
+    if (sent > 0) {
+      const fresh = await guestLoad(code).catch(() => null);
+      if (fresh) data = fresh;
+    }
+  } finally {
+    flushingNotes = false;
+  }
+}
+
+/** Everything waiting on the phone: finished workouts, answers, note edits, and notes to Allison. */
+async function flushAll(): Promise<void> {
+  await Promise.all([flushOne(), flushMessages()]);
 }
 
 /** A workout left open for hours (not on the Before screen): offered back, never silently dropped. */
@@ -675,6 +718,7 @@ async function boot(): Promise<void> {
     return;
   }
   code = saved;
+  setHeader();
   renderLoading(root);
   try {
     data = await guestLoad(code);
@@ -689,7 +733,7 @@ async function boot(): Promise<void> {
         lockedLine = true;
         setHeader();
         route(true);
-        void flush();
+        void flushAll();
         return;
       }
       renderCantOpen(root, () => void boot());
@@ -704,7 +748,7 @@ async function boot(): Promise<void> {
   setHeader();
   route(true);
   precachePictures();
-  void flush();
+  void flushAll();
 }
 
 /** Ask the browser not to clear the phone's saved copy and queue. Ignored if unsupported. */
@@ -726,7 +770,7 @@ function registerWorker(): void {
 
 // Coming back online retries the queue too, not only opening the app.
 window.addEventListener('online', () => {
-  if (code !== '') void flush();
+  if (code !== '') void flushAll();
 });
 
 /** Ask the offline worker to keep this program's pictures. Best effort. */
@@ -744,6 +788,15 @@ function precachePictures(): void {
     .then((reg) => reg.active?.postMessage({ type: 'cache-images', urls: [...urls] }))
     .catch(() => undefined);
 }
+
+$<HTMLButtonElement>(document, '#note-btn').addEventListener('click', () => {
+  openNoteSheet({
+    code: () => code,
+    whatsappHref: tellHref,
+    items: () => listNotes(data?.messages ?? []),
+    onChanged: syncUnsent,
+  });
+});
 
 $<HTMLButtonElement>(document, '#settings-btn').addEventListener('click', () => {
   if (data) showSettings();

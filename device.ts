@@ -46,18 +46,24 @@ export const GO_HZ = 990;
 /** The finish chime: two soft notes. */
 export const CHIME_HZ = 523;
 
+/** The app's beeps are off while a note is being recorded. */
+let beepsMuted = false;
+export function muteBeeps(on: boolean): void {
+  beepsMuted = on;
+}
+
 export function tick(): void {
-  if (!getBeeps()) return;
+  if (!getBeeps() || beepsMuted) return;
   tone(TICK_HZ, 0, 0.12, 0.12);
 }
 
 export function goBeep(): void {
-  if (!getBeeps()) return;
+  if (!getBeeps() || beepsMuted) return;
   tone(GO_HZ, 0, 0.3, 0.15);
 }
 
 export function chime(): void {
-  if (!getBeeps()) return;
+  if (!getBeeps() || beepsMuted) return;
   tone(CHIME_HZ, 0, 0.25, 0.15);
   tone(CHIME_HZ * 1.5, 0.28, 0.4, 0.15);
 }

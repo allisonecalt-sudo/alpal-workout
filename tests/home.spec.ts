@@ -43,22 +43,29 @@ test('no sessions yet is a quiet line, not a scolding', async ({ page, net }) =>
   await expect(page.locator('#past-weeks')).toHaveText('Nothing here yet');
 });
 
-test('the Tell Allison link is exact and comes from the store', async ({ page }) => {
+test('the note button is in the header; its sheet keeps the exact WhatsApp link', async ({
+  page,
+}) => {
   await openUnlocked(page);
-  const tell = page.locator('#tell');
-  await expect(tell).toHaveText('💬 Tell Allison');
+  const note = page.locator('#note-btn');
+  await expect(note).toHaveText('🎤 Note to Allison');
+  await note.click();
   const digits = PHONE.replace(/\D/g, '');
-  await expect(tell).toHaveAttribute(
+  await expect(page.locator('#note-wa')).toHaveText('or open WhatsApp');
+  await expect(page.locator('#note-wa')).toHaveAttribute(
     'href',
     `https://wa.me/${digits}?text=About%20my%20workout%20app%3A%20`
   );
 });
 
-test('with no number in the store the Tell Allison button is hidden', async ({ page, net }) => {
+test('with no number in the store the sheet has no WhatsApp link', async ({ page, net }) => {
   net.guest = makeGuest({ tell_whatsapp: null });
   await openUnlocked(page);
   await expect(page.locator('#greeting')).toBeVisible();
-  await expect(page.locator('#tell')).toBeHidden();
+  await expect(page.locator('#note-btn')).toBeVisible();
+  await page.locator('#note-btn').click();
+  await expect(page.locator('#rec-start')).toBeVisible();
+  await expect(page.locator('#note-wa')).toHaveCount(0);
 });
 
 test('no program in the store fails loud, with the Tell button', async ({ page, net }) => {
@@ -67,7 +74,7 @@ test('no program in the store fails loud, with the Tell button', async ({ page, 
   await expect(page.locator('#not-loaded')).toHaveText(
     "Your workout isn't loaded yet. Tell Allison."
   );
-  await expect(page.locator('#tell')).toBeVisible();
+  await expect(page.locator('#note-btn')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start' })).toHaveCount(0);
 });
 
@@ -101,7 +108,7 @@ for (const width of [320, 390, 430]) {
 test('every button on Home is at least 44px tall', async ({ page }) => {
   await openUnlocked(page);
   await expect(page.locator('#start-btn')).toBeVisible();
-  for (const b of await page.locator('button, #tell').all()) {
+  for (const b of await page.locator('button').all()) {
     if (!(await b.isVisible())) continue;
     const box = await b.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);

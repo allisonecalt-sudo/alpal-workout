@@ -151,6 +151,8 @@ export interface FakeGuest {
   weeks?: unknown[];
   /** The week after the active one (its program data). */
   next?: unknown;
+  /** Her last notes to Allison, as the store lists them. */
+  messages?: unknown[];
 }
 
 export function makeGuest(over: Partial<FakeGuest> = {}): FakeGuest {
@@ -202,6 +204,10 @@ export class Net {
   requests: { method: string; url: string; headers: Record<string, string> }[] = [];
   /** What a save answers with; null means the normal answer. */
   saveReply: unknown = null;
+  /** Notes to Allison that reached the stub (the whole request body). */
+  messages: { url: string; body: { p_code: string; p_msg: Record<string, unknown> } }[] = [];
+  /** What a note save replies with; null means the normal answer. */
+  messageReply: unknown = null;
 }
 
 async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<void>) {
@@ -223,6 +229,11 @@ async function handle(net: Net, req: Request, fulfill: (b: unknown) => Promise<v
   if (url.pathname.endsWith('/rest/v1/rpc/guest_update_note')) {
     net.notes.push(body);
     if (net.noteReply) return fulfill(net.noteReply);
+    return fulfill(body.p_code === net.code ? { ok: true } : { ok: false, reason: 'bad code' });
+  }
+  if (url.pathname.endsWith('/rest/v1/rpc/guest_save_message')) {
+    net.messages.push({ url: req.url(), body });
+    if (net.messageReply) return fulfill(net.messageReply);
     return fulfill(body.p_code === net.code ? { ok: true } : { ok: false, reason: 'bad code' });
   }
   if (url.pathname.endsWith('/rest/v1/rpc/guest_save_answer')) {
@@ -328,6 +339,89 @@ export async function installDevices(page: Page): Promise<void> {
         cancel() {},
       },
     });
+    // a microphone that can record (the headless browsers have none)
+    const mic = { opened: 0, stopped: 0, mp4: false, deny: false, recorders: 0 };
+    w.__mic = mic;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          if (mic.deny) throw new DOMException('denied', 'NotAllowedError');
+          mic.opened++;
+          return { getTracks: () => [{ stop: () => mic.stopped++ }] };
+        },
+      },
+    });
+    class FakeRecorder {
+      static isTypeSupported(t: string) {
+        return t === 'audio/webm' || (mic.mp4 && t === 'audio/mp4');
+      }
+      state = 'inactive';
+      mimeType: string;
+      ondataavailable: ((e: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      constructor(_s: unknown, o?: { mimeType?: string }) {
+        this.mimeType = o?.mimeType ?? 'audio/webm';
+        mic.recorders++;
+      }
+      start() {
+        this.state = 'recording';
+      }
+      stop() {
+        this.state = 'inactive';
+        setTimeout(() => {
+          this.ondataavailable?.({ data: new Blob([new Uint8Array([1, 2, 3, 4, 5, 6])]) });
+          this.onstop?.();
+        }, 0);
+      }
+    }
+    w.MediaRecorder = FakeRecorder;
+    // audio playback: the headless browsers cannot decode our fake bytes, so play/pause are faked
+    const audio = { plays: [] as string[], el: null as HTMLMediaElement | null, pauses: 0 };
+    w.__audio = audio;
+    const proto = HTMLMediaElement.prototype;
+    const define = (name: string, desc: PropertyDescriptor) =>
+      Object.defineProperty(proto, name, { configurable: true, ...desc });
+    define('paused', {
+      get: function (this: { __on?: boolean }) {
+        return !this.__on;
+      },
+    });
+    define('duration', { get: () => 38 });
+    define('currentTime', {
+      get: function (this: { __t?: number }) {
+        return this.__t ?? 0;
+      },
+      set: function (this: { __t?: number }, v: number) {
+        this.__t = v;
+      },
+    });
+    define('play', {
+      value: function (this: HTMLMediaElement & { __on?: boolean }) {
+        this.__on = true;
+        audio.el = this;
+        audio.plays.push(this.currentSrc || this.src);
+        this.dispatchEvent(new Event('loadedmetadata'));
+        this.dispatchEvent(new Event('play'));
+        return Promise.resolve();
+      },
+    });
+    define('pause', {
+      value: function (this: HTMLMediaElement & { __on?: boolean }) {
+        if (!this.__on) return;
+        this.__on = false;
+        audio.pauses++;
+        this.dispatchEvent(new Event('pause'));
+      },
+    });
+    define('load', { value: function () {} });
+    w.__advance = (sec: number) => {
+      const el = audio.el as (HTMLMediaElement & { __t?: number }) | null;
+      if (!el) return;
+      el.__t = Math.min(38, (el.__t ?? 0) + sec);
+      el.dispatchEvent(new Event('timeupdate'));
+      if (el.__t >= 38) el.dispatchEvent(new Event('ended'));
+    };
     Object.defineProperty(navigator, 'wakeLock', {
       configurable: true,
       value: {
