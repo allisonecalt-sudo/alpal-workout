@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { expect, openUnlocked, test } from './fixtures';
+import { expect, makeGuest, makeRoundsProgram, openUnlocked, test } from './fixtures';
 
 // This file lets the service worker run (the config blocks it everywhere else).
 test.use({ serviceWorkers: 'allow' });
@@ -38,4 +38,32 @@ test('the worker caches the shell under the app version and the app opens offlin
   await page.reload();
   await expect(page.locator('#greeting')).toHaveText('Hi Test User 👋'); // shell + last good copy
   await expect(page.locator('#app-version')).toContainText(version);
+});
+
+test('the current program’s pictures are kept for offline use', async ({ page, net }) => {
+  const program = makeRoundsProgram();
+  (program.workouts as { warmup: Record<string, unknown>[] }[])[0].warmup[0].images = [
+    'assets/moves/m01-start.jpg',
+    'assets/moves/m01-end.jpg',
+  ];
+  net.guest = makeGuest({ program, sessions: [] });
+  await openUnlocked(page);
+  await expect(page.locator('#greeting')).toBeVisible();
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          for (const name of await caches.keys()) {
+            const cache = await caches.open(name);
+            for (const req of await cache.keys()) {
+              if (req.url.endsWith('assets/moves/m01-end.jpg') && name.endsWith('-runtime')) {
+                return true;
+              }
+            }
+          }
+          return false;
+        }),
+      { timeout: 10_000 }
+    )
+    .toBe(true);
 });

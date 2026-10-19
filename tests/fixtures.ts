@@ -173,6 +173,8 @@ export class Net {
   answerReply: unknown = null;
   /** Video player pages that were requested (the stub answers them with an empty page). */
   frames: string[] = [];
+  /** Video preview pictures that were requested. */
+  thumbs: string[] = [];
   /** Make a save answer slowly (milliseconds). */
   saveDelayMs = 0;
   /** Make answer requests fail as if offline, while sessions still work. */
@@ -221,6 +223,15 @@ export async function installNet(page: Page, net: Net): Promise<void> {
         'access-control-allow-methods': 'POST, OPTIONS',
       };
       if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      if (new URL(req.url()).hostname === 'i.ytimg.com') {
+        net.thumbs.push(req.url());
+        // a 1x1 picture
+        return route.fulfill({
+          status: 200,
+          contentType: 'image/gif',
+          body: Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'),
+        });
+      }
       if (new URL(req.url()).hostname === 'www.youtube-nocookie.com') {
         net.frames.push(req.url());
         return route.fulfill({ status: 200, contentType: 'text/html', body: '<html></html>' });
