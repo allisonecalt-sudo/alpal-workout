@@ -69,15 +69,36 @@ test('Redo starts that hold over', () => {
   expect(again.run.durationMs).toBe(30_000);
 });
 
-test('after a reload a get-ready starts over, and a hold freezes at what was shown', () => {
+test('after a reload a get-ready starts over', () => {
   const pre = startHold(newHold(30), T0);
-  expect(afterReload(pre).phase).toBe('ready');
+  expect(afterReload(pre, T0 + 1000).phase).toBe('ready');
+});
 
+test('after a reload a running hold counts what the timer would have shown, up to the moment the page is back', () => {
   let h = startHold(newHold(30, 0), T0);
-  h = tickHold(h, T0 + 12_300).hold; // shown: 12 s
-  const frozen = afterReload(h);
-  expect(frozen.phase).toBe('held');
-  expect(frozen.heldSec).toBe(12);
-  // a second reload counts it once, never the idle time
-  expect(afterReload(frozen)).toEqual(frozen);
+  h = tickHold(h, T0 + 4500).hold; // the last number shown was about 4 or 5 s
+  // the page was gone 8 more seconds: the timer would have shown about 12 or 13
+  const back = afterReload(h, T0 + 4500 + 8000);
+  expect(back.phase).toBe('held');
+  expect(back.heldSec).toBe(13); // 12.5 s rounds to 13
+  expect(back.shown).toBe(13);
+});
+
+test('the count is capped at the hold length', () => {
+  const h = startHold(newHold(30, 0), T0);
+  expect(afterReload(h, T0 + 120_000).heldSec).toBe(30);
+});
+
+test('after that first moment idle time never counts, and a second reload adds nothing', () => {
+  const h = startHold(newHold(30, 0), T0);
+  const first = afterReload(h, T0 + 12_000);
+  expect(first.heldSec).toBe(12);
+  expect(afterReload(first, T0 + 60_000)).toEqual(first);
+  expect(afterReload(afterReload(first, T0 + 90_000), T0 + 200_000).heldSec).toBe(12);
+});
+
+test('a hold that was paused counts only what the timer showed when it was paused', () => {
+  let h = startHold(newHold(30, 0), T0);
+  h = { ...h, run: { ...h.run, startedAt: null, usedMs: 7000 } }; // frozen at 7 s
+  expect(afterReload(h, T0 + 500_000).heldSec).toBe(7);
 });

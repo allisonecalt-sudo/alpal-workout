@@ -127,10 +127,8 @@ test('a reload during the get-ready starts the count over from Ready', async ({ 
   await expect(page.locator('#timer-btn')).toHaveText('Start');
 });
 
-test('a reload mid-hold freezes at what was shown; idle time never counts, a second reload counts it once', async ({
-  page,
-  net,
-}) => {
+/** Start a 30 s hold, get into the hold itself, and let it run for a moment. */
+async function runningHold(page: import('@playwright/test').Page, net: Net): Promise<void> {
   const program = makeHoldProgram();
   (program.workouts as { main: { seconds?: number }[] }[])[0].main[0].seconds = 30;
   net.guest = makeGuest({ program, sessions: [] });
@@ -138,14 +136,63 @@ test('a reload mid-hold freezes at what was shown; idle time never counts, a sec
   await startWorkout(page);
   await page.locator('#timer-btn').click();
   await expect(page.locator('#timer-btn')).toHaveText('Stop', { timeout: 6000 });
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(1500);
+}
+
+/** Pretend the hold started `seconds` earlier (the page was away that long). */
+async function shiftHoldStart(
+  page: import('@playwright/test').Page,
+  seconds: number
+): Promise<void> {
+  await page.evaluate((ms) => {
+    const p = JSON.parse(localStorage.getItem('aw.progress') as string);
+    p.hold.run.startedAt -= ms;
+    localStorage.setItem('aw.progress', JSON.stringify(p));
+  }, seconds * 1000);
+}
+
+test('a reload mid-hold counts what the timer would have shown: held 1.5 s, gone 8 s, about 9 to 11 s', async ({
+  page,
+  net,
+}) => {
+  await runningHold(page, net);
+  await shiftHoldStart(page, 8);
   await page.reload();
   const held = page.locator('#held');
-  await expect(held).toHaveText(/^✓ held [1-4] s$/);
+  await expect(held).toHaveText(/^✓ held (9|10|11|12) s$/);
   const first = await held.textContent();
-  // time spent idle after the reload does not add to it
-  await page.waitForTimeout(2500);
+  const seconds = Number(/(\d+) s/.exec(first ?? '')?.[1]);
+  // finish and save: those are the seconds in the readings
+  await page.locator('#done-btn').click();
+  await page.locator('#done-btn').click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('#greeting')).toBeVisible();
+  const s = net.saves[0].p_session as { readings: { holds: Record<string, number[]> } };
+  expect(s.readings.holds).toEqual({ 'Hold one': [seconds] });
+});
+
+test('the count after a reload is capped at the hold length', async ({ page, net }) => {
+  await runningHold(page, net);
+  await shiftHoldStart(page, 600);
+  await page.reload();
+  await expect(page.locator('#held')).toHaveText('✓ held 30 s');
+});
+
+test('after the first moment back, idle time never counts, and two reloads add nothing', async ({
+  page,
+  net,
+}) => {
+  await runningHold(page, net);
+  await shiftHoldStart(page, 5);
+  await page.reload();
+  const held = page.locator('#held');
+  await expect(held).toHaveText(/^✓ held \d+ s$/);
+  const first = await held.textContent();
+  await page.waitForTimeout(2500); // idle time after the page is back
   expect(await held.textContent()).toBe(first);
+  await page.reload();
+  await expect(page.locator('#held')).toHaveText(first as string);
+  await page.waitForTimeout(1200);
   await page.reload();
   await expect(page.locator('#held')).toHaveText(first as string);
 });

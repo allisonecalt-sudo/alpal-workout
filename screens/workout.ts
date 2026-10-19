@@ -266,7 +266,8 @@ export function renderWorkout(root: HTMLElement, opts: WorkoutOptions): void {
     const timed = move.seconds !== undefined;
     if (timed) {
       if (!progress.hold) progress.hold = newHold(move.seconds ?? 0);
-      else if (freezeHold && progress.pausedAt === null) progress.hold = afterReload(progress.hold);
+      else if (freezeHold && progress.pausedAt === null)
+        progress.hold = afterReload(progress.hold, now());
       freezeHold = false;
       save();
     }
